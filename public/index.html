@@ -119,13 +119,14 @@
       <div class="max-w-4xl mx-auto items-center">
         <h2 class="text-3xl font-semibold text-teal-400 mb-4">Contacto</h2>
         <p class="text-gray-300 mb-4">¿Quieres trabajar conmigo? ¡Envíame un mensaje!</p>
-        <form class="grid gap-4 max-w-lg">
-          <input type="text" placeholder="Tu nombre" class="p-3 bg-gray-700 text-white rounded" />
-          <input type="email" placeholder="Tu email" class="p-3 bg-gray-700 text-white rounded" />
-          <textarea rows="4" placeholder="Mensaje" class="p-3 bg-gray-700 text-white rounded"></textarea>
-          <button onclick="sendMail()" class="bg-teal-500 hover:bg-teal-400 text-white font-semibold py-2 px-4 rounded">
+        <form id="contact-form" class="grid gap-4 max-w-lg">
+          <input type="text" id="name" placeholder="Tu nombre" class="p-3 bg-gray-700 text-white rounded" />
+          <input type="email" id="email" placeholder="Tu email" class="p-3 bg-gray-700 text-white rounded" />
+          <textarea rows="4" id="message" placeholder="Mensaje" class="p-3 bg-gray-700 text-white rounded"></textarea>
+          <button type="button" id="mail" onclick="sendMail(event)" class="bg-teal-500 hover:bg-teal-400 text-white font-semibold py-2 px-4 rounded">
             Enviar
           </button>
+          <p id="form-response" class="text-sm mt-2 text-teal-300"></p>
         </form>
       </div>
     </section>
@@ -135,6 +136,6 @@
       © 2025 Cristian Reyes. Todos los derechos reservados.
     </footer>
     <script src="points.js"></script>
-    <script src="mailsender.js"></script>
+    <script src="mailerController.js"></script>
   </body>
 </html>
