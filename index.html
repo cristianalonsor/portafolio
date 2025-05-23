@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Portafolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+  </head>
+
+  <body class="bg-gray-900 text-white font-sans">
+    <!-- Header -->
+    <header class="sticky top-0 bg-gray-950 shadow-md z-50">
+      <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-teal-400"><a href="#inicio">Portafolio</a></h1>
+        <ul class="flex gap-6 text-sm md:text-base">
+          <li><a href="#inicio" class="text-white hover:text-teal-300">Inicio</a></li>
+          <li><a href="#sobre-mi" class="text-white hover:text-teal-300">Sobre mí</a></li>
+          <li><a href="#proyectos" class="text-white hover:text-teal-300">Proyectos</a></li>
+          <li><a href="#contacto" class="text-white hover:text-teal-300">Contacto</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- Hero -->
+    <section id="inicio" class="relative min-h-screen flex flex-col justify-center items-center bg-gray-900 overflow-hidden">
+
+      <!-- Canvas de partículas -->
+      <canvas id="particles-canvas" class="absolute top-0 left-0 w-full h-full z-0"></canvas>
+
+      <!-- Contenido del hero -->
+      <div class="relative z-10 text-center px-4">
+        <h2 class="text-4xl md:text-5xl font-bold mb-4 text-white">Hola, soy <span class="text-teal-400">Cristian</span></h2>
+        <p class="text-gray-300 text-lg max-w-xl">Ingeniero Informático entusiasta del desarrollo, el código limpio y las tecnologías modernas.</p>
+      </div>
+    </section>
+
+
+    <!-- About -->
+    <section id="sobre-mi" class="py-20 px-6 bg-gray-800">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-3xl font-semibold text-teal-400 mb-4">Sobre mí</h2>
+        <p class="text-gray-300">
+          Soy un desarrollador web apasionado por crear experiencias digitales intuitivas y efectivas...
+          con conocimiento fuerte en tecnologías para el desarrollo web basadas en Javascript como "Angular", "React", "Node"
+          o lo que se necesite para los desarrollos web y multiplataformas aplicando las mejores prácticas, creando así productos
+          de alta calidad para los ususarios finales.
+        </p>
+      </div>
+    </section>
+
+   <!-- Projects -->
+    <section id="proyectos" class="py-20 px-6 bg-gray-900">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row gap-8">
+
+          <!-- Columna: Proyectos / Timeline -->
+          <div class="md:w-1/2">
+            <h2 class="text-3xl font-semibold text-teal-400 mb-4">Proyectos</h2>
+            <p class="text-gray-300 mb-8">
+              Aquí algunos de mis trabajos recientes...
+            </p>
+
+            <!-- Timeline -->
+            <div class="border-l-4 border-teal-500 pl-6 space-y-10">
+
+              <!-- Item 1 -->
+              <div class="relative">
+                <div class="absolute -left-[0.55rem] top-1.5 bg-teal-500 h-3 w-3 rounded-full border-2 border-white"></div>
+                <h3 class="text-xl font-semibold text-white">Ninja Excel</h3>
+                <span class="text-sm text-gray-400">Diciembre 2023 – Actualidad</span>
+                <p class="mt-2 text-gray-300">Desarrollador Front-End, encargado implementación de interfaces 
+                con Angular y Angular Material, para poder dar la mejor experiencia al usuario al momento de
+                avanzar en sus cursos de excel.</p>
+              </div>
+
+              <!-- Item 2 -->
+              <div class="relative">
+                <div class="absolute -left-[0.55rem] top-1.5 bg-teal-500 h-3 w-3 rounded-full border-2 border-white"></div>
+                <h3 class="text-xl font-semibold text-white">Deloitte</h3>
+                <span class="text-sm text-gray-400">Marzo 2021 – Diciembre 2023</span>
+                <p class="mt-2 text-gray-300">Desarrollador Guidewire para proyectos de consultoría hacia el banco "TD" en Canadá",
+                integrando apis desarrolladas en Java en la plataforma.</p>
+              </div>
+
+              <!-- Item 3 -->
+              <div class="relative">
+                <div class="absolute -left-[0.55rem] top-1.5 bg-teal-500 h-3 w-3 rounded-full border-2 border-white"></div>
+                <h3 class="text-xl font-semibold text-white">Freelance</h3>
+                <span class="text-sm text-gray-400">Julio 2020 – Septiembre 2020</span>
+                <p class="mt-2 text-gray-300">Trabajo independiente realizando aplicación mobile para una empresa de transporte que necesitaba
+                digitalizar sus servicios y sus rutas.</p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Columna: Tecnologías -->
+          <div class="md:w-1/2">
+            <h2 class="text-3xl font-semibold text-teal-400 mb-4">Tecnologías</h2>
+            <p class="text-gray-300 mb-5">
+              Aquí algunas tecnologías con las cuales he trabajado con anterioridad...
+            </p>
+            <div class="grid grid-cols-3 gap-4">
+              <img src="img/angularjs.png" class="w-16 h-16 object-contain" alt="Angular">
+              <img src="img/html.png" class="w-16 h-16 object-contain" alt="HTML">
+              <img src="img/java.png" class="w-16 h-16 object-contain" alt="Java">
+              <img src="img/js.png" class="w-16 h-16 object-contain" alt="JavaScript">
+              <img src="img/firebase.png" class="w-16 h-16 object-contain" alt="Firebase">
+              <img src="img/node.png" class="w-16 h-16 object-contain" alt="Node">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section id="contacto" class="py-20 px-6 bg-gray-800">
+      <div class="max-w-4xl mx-auto items-center">
+        <h2 class="text-3xl font-semibold text-teal-400 mb-4">Contacto</h2>
+        <p class="text-gray-300 mb-4">¿Quieres trabajar conmigo? ¡Envíame un mensaje!</p>
+        <form class="grid gap-4 max-w-lg">
+          <input type="text" placeholder="Tu nombre" class="p-3 bg-gray-700 text-white rounded" />
+          <input type="email" placeholder="Tu email" class="p-3 bg-gray-700 text-white rounded" />
+          <textarea rows="4" placeholder="Mensaje" class="p-3 bg-gray-700 text-white rounded"></textarea>
+          <button onclick="sendMail()" class="bg-teal-500 hover:bg-teal-400 text-white font-semibold py-2 px-4 rounded">
+            Enviar
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-6 text-center bg-gray-950 text-gray-400 text-sm">
+      © 2025 Cristian Reyes. Todos los derechos reservados.
+    </footer>
+    <script src="points.js"></script>
+    <script src="mailsender.js"></script>
+  </body>
+</html>
