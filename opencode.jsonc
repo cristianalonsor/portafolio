@@ -20,13 +20,16 @@
   "$schema": "https://opencode.ai/config.json",
 
   // ── Modelo de IA ─────────────────────────────────────────────────────────
-  // `model` define qué proveedor y modelo usa opencode para sus respuestas.
-  // Formato: "proveedor/modelo".
-  // anthropic/claude-sonnet-4-6 es un modelo de alto razonamiento de Anthropic,
-  // ideal para tareas de programación que requieren análisis profundo.
+  // `model` define qué modelo usa opencode para sus respuestas.
+  // Formato: "proveedor/modelo" (obligatorio: el `/` separa proveedor de modelo).
   //
-  // Si no se especifica, opencode usa el modelo global de ~/.config/opencode/.
-  "model": "anthropic/claude-sonnet-4-6",
+  // opencode/deepseek-v4-flash-free → modelo gratuito integrado en opencode.
+  //   No requiere API key ni configuración externa. Es el que usamos por defecto.
+  //
+  // Para usar Claude Sonnet localmente, primero registra Anthropic:
+  //   opencode providers login https://api.anthropic.com
+  // Luego cambia este valor a "anthropic/claude-sonnet-4-6".
+  "model": "opencode/deepseek-v4-flash-free",
 
   // ── Archivos de instrucciones ─────────────────────────────────────────────
   // `instructions` es un array de rutas (relativas al proyecto) que opencode
@@ -55,11 +58,11 @@
   // prompt y reglas. opencode lo invoca internamente para esa tarea.
   "command": {
     // deploy: Pregunta al usuario qué desplegar y ejecuta.
-    // Este comando NO tiene agent, así que opencode usa su agente principal
-    // (build) para ejecutar el prompt directamente.
+    // El campo requerido es "template" (no "prompt") según el schema de opencode.
+    // "template" es el mensaje que se envía al agente cuando se ejecuta el comando.
     "deploy": {
       "description": "Despliega frontend (GitHub Pages), backend (Railway) o ambos",
-      "prompt": "Pregunta al usuario qué quiere desplegar (frontend, backend o ambos) y ejecuta los pasos correspondientes siguiendo las guías del proyecto."
+      "template": "Pregunta al usuario qué quiere desplegar (frontend, backend o ambos) y ejecuta los pasos correspondientes siguiendo las guías del proyecto."
     },
     // deploy:frontend: Template directo para build + push del frontend.
     // Un "template" se comporta como un prompt pero está diseñado para
@@ -78,7 +81,7 @@
     // todo el flujo de trabajo.
     "issue": {
       "description": "Workflow completo: refinar issue, crear tarjeta, desarrollar y desplegar",
-      "prompt": "Lee el issue #{ISSUE_NUMBER} de GitHub, refínalo, crea una tarjeta en el Project Board, desarrolla los cambios necesarios y despliega."
+      "template": "Lee el issue #{ISSUE_NUMBER} de GitHub, refínalo, crea una tarjeta en el Project Board, desarrolla los cambios necesarios y despliega."
     },
     // issue:refine: Delega al subagente "refiner" que está definido en
     // .opencode/agents/refiner.md. El subagente tiene su propio prompt,

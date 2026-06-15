@@ -1,0 +1,162 @@
+/**
+ * opencode.yml — Workflow de GitHub Actions que AUTOMATIZA el ciclo completo:
+ *
+ *   Issue creado → opencode lo lee → implementa código → crea Pull Request
+ *
+ * ¿Cómo funciona?
+ * ────────────────
+ * 1. Cuando creas un issue en GitHub, este workflow se activa automáticamente.
+ * 2. Instala opencode (CLI de IA) en el runner de GitHub Actions.
+ * 3. Ejecuta `opencode run` en modo no interactivo con un prompt que le indica:
+ *    a. Leer el issue con `gh issue view`
+ *    b. Analizar el código del repositorio (ya clonado)
+ *    c. Crear una rama con el formato feat/issue-{numero}-{slug}
+ *    d. Implementar los cambios necesarios
+ *    e. Hacer commit y push
+ *    f. Crear un Pull Request con `gh pr create`
+ * 4. Tú solo revisas el PR y lo mergeas si está correcto.
+ *
+ * ¿Por qué opencode y no Claude Code?
+ * ─────────────────────────────────────
+ * opencode tiene modelos gratuitos integrados (opencode/deepseek-v4-flash-free)
+ * que NO requieren API key de terceros. El costo por ejecución es $0.
+ *
+ * Modelo gratuito: opencode/deepseek-v4-flash-free
+ *   - Sin necesidad de API key externa
+ *   - Sin límite de uso en GitHub Actions
+ *   - Capacidad de usar herramientas (bash, edit, read, etc.)
+ *
+ * Requisitos:
+ *   - Ninguno. El workflow usa GITHUB_TOKEN (se inyecta automáticamente en Actions).
+ *
+ * Diferencia con claude.yml:
+ *   claude.yml → requiere @claude en comentarios + ANTHROPIC_API_KEY (pago)
+ *   opencode.yml → se dispara solo al crear issue + modelo gratuito
+ */
+
+name: opencode Auto-Implement
+
+# ── Disparadores ──────────────────────────────────────────────────────────────
+# Se activa automáticamente cuando se crea un NUEVO issue (no comentarios).
+on:
+  issues:
+    types: [opened]
+
+# ── Permisos ──────────────────────────────────────────────────────────────────
+# contents: write      → necesario para pushear ramas nuevas
+# pull-requests: write → necesario para crear PRs
+# issues: read         → necesario para leer el contenido del issue
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  # ── Job: implement ─────────────────────────────────────────────────────────
+  # Un solo job que orquesta todo: instalar opencode, leer el issue,
+  # implementar los cambios y crear el PR.
+  implement:
+    # Solo ejecuta si el issue está abierto (evita procesar issues cerrados)
+    if: github.event.issue.state == 'open'
+
+    # Ubuntu latest incluye gh CLI, git, Node.js preinstalados
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clonar el repositorio en el runner
+      # fetch-depth: 0 → clona todo el historial (necesario para crear ramas)
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Configurar git para que los commits tengan autoría correcta
+      # Sin esto, los commits hechos por opencode no tendrían autor.
+      # Usamos el GITHUB_ACTOR (el usuario que disparó el workflow)
+      - name: Configurar git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # 3. Instalar opencode globalmente con npm
+      # @opencode-ai/cli es el paquete oficial de opencode en npm.
+      # La instalación es rápida (~5 segundos).
+      - name: Instalar opencode
+        run: npm install -g @opencode-ai/cli
+
+      # 4. Ejecutar opencode en modo NO INTERACTIVO
+      #
+      # opencode run: ejecuta opencode con un mensaje y termina.
+      #   No requiere TTY ni interacción humana.
+      #
+      # Flags:
+      #   --dangerously-skip-permissions
+      #     Auto-aprueba TODAS las herramientas (bash, edit, read, etc.)
+      #     Sin esto, opencode preguntaría "¿permites ejecutar X?" y se
+      #     bloquearía esperando respuesta.
+      #
+      #   -m opencode/deepseek-v4-flash-free
+      #     Modelo gratuito sin API key.
+      #
+      #   --format json
+      #     Salida en JSON (por si queremos parsear resultados después).
+      #
+      # El prompt detalla paso a paso lo que opencode debe hacer.
+      # github.event.issue.number → número del issue (inyectado por Actions).
+      # GH_TOKEN → variable de entorno con el token de Actions.
+      - name: Implementar issue con opencode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          opencode run \
+            --dangerously-skip-permissions \
+            -m opencode/deepseek-v4-flash-free \
+            --format json \
+            "Eres un desarrollador automatizado en GitHub Actions.
+
+             Te han asignado el issue #${{ github.event.issue.number }} de este repositorio.
+
+             ## Paso 1: Leer el issue
+             Ejecuta: gh issue view ${{ github.event.issue.number }} --json title,body,labels
+             Analiza el título, descripción y labels para entender qué hay que hacer.
+
+             ## Paso 2: Crear una rama
+             Crea una rama desde main con el formato: feat/issue-${{ github.event.issue.number }}-{slug}
+             donde slug son 2-3 palabras del título en ingles, separadas por guiones.
+             Ejecuta:
+               git checkout main
+               git pull origin main
+               git checkout -b feat/issue-${{ github.event.issue.number }}-{slug}
+
+             ## Paso 3: Implementar
+             Lee los archivos relevantes del proyecto (usa cat o read de archivo).
+             Entiende la estructura del monorepo:
+               - frontend/ → React + TypeScript + Vite + Tailwind
+               - backend/ → Express + TypeScript + Resend
+             Implementa los cambios siguiendo las convenciones del proyecto.
+             Verifica con npx tsc --noEmit en frontend/ y backend/ si aplica.
+
+             ## Paso 4: Commit y push
+             Ejecuta:
+               git add -A
+               git commit -m 'feat: implementa issue #${{ github.event.issue.number }} - {titulo}'
+               git push origin feat/issue-${{ github.event.issue.number }}-{slug}
+
+             ## Paso 5: Crear Pull Request
+             Ejecuta:
+               gh pr create \
+                 --title 'Implementa issue #${{ github.event.issue.number }}: {titulo}' \
+                 --body 'Closes #${{ github.event.issue.number }}
+
+             ## Cambios realizados
+             - {lista de cambios}
+
+             > PR generado automáticamente por opencode' \
+                 --base main
+
+             ## Reglas importantes
+             - No modifiques archivos que no estén relacionados con el issue
+             - Sigue las convenciones del proyecto (import type, JSDoc, etc.)
+             - Si algo no está claro, haz tu mejor interpretacion
+             - NO esperes confirmacion del usuario — ejecuta directamente
+             - El repositorio ya esta clonado en el directorio actual"
