@@ -1,0 +1,72 @@
+# Claude GitHub Action — Integración de Claude Code en el repositorio
+#
+# Permite mencionar @claude en cualquier comentario de issue o PR para que
+# Claude Code analice el repositorio, escriba código y abra PRs automáticamente.
+#
+# Casos de uso:
+#   - "@claude implementa X en el componente Y"
+#   - "@claude revisa este PR y dime si hay problemas"
+#   - "@claude hay un bug en el formulario de contacto, corrígelo"
+#   - "@claude añade tests para el middleware de validación"
+#
+# Requisitos (configurar una sola vez en GitHub):
+#   1. Instalar la GitHub App: https://github.com/apps/claude
+#   2. Añadir secret ANTHROPIC_API_KEY en Settings → Secrets → Actions
+
+name: Claude Code
+
+on:
+  # Se dispara cuando alguien comenta en un issue
+  issue_comment:
+    types: [created]
+
+  # Se dispara cuando alguien comenta en una línea específica de un PR
+  pull_request_review_comment:
+    types: [created]
+
+  # Se dispara cuando alguien deja un review general en un PR
+  pull_request_review:
+    types: [submitted]
+
+# Permisos necesarios para que Claude pueda leer el repo,
+# escribir comentarios y crear/actualizar PRs
+permissions:
+  contents: write        # leer y escribir archivos del repo
+  pull-requests: write   # abrir y comentar en PRs
+  issues: write          # comentar en issues
+  id-token: write        # autenticación OIDC
+
+jobs:
+  claude:
+    # Solo corre si el comentario contiene "@claude"
+    # Evita que el workflow se dispare en cada comentario del repo
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ejecutar Claude Code
+        uses: anthropics/claude-code-action@beta
+        with:
+          # API key de Anthropic — nunca escribirla directamente aquí,
+          # siempre desde secrets para que no quede expuesta en los logs
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Contexto adicional que Claude recibe en cada tarea.
+          # Le explica la estructura del proyecto para que tome mejores decisiones.
+          custom_instructions: |
+            Este es el portafolio personal de Cristian Reyes — Full Stack Developer.
+
+            Estructura del monorepo:
+            - frontend/  → React 19 + TypeScript + Vite + Tailwind CSS v4
+            - backend/   → Node.js + Express 5 + TypeScript + Resend API
+
+            Reglas importantes:
+            - Usar `import type` para tipos de TypeScript (verbatimModuleSyntax está activo)
+            - El sistema de diseño usa tokens: coral, teal, orange, yellow, dark, slate, muted
+            - Todos los componentes nuevos deben tener un comentario JSDoc general
+            - Los PRs van de una rama hacia main, nunca push directo a main
+            - El frontend se despliega en GitHub Pages, el backend en Railway
