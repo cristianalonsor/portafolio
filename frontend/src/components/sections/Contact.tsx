@@ -13,7 +13,7 @@ import { Button } from '../ui/Button';
 
 /** Datos de contacto mostrados en la columna izquierda. */
 const CONTACT_INFO = [
-  { icon: '✉️', label: 'Email', value: 'creyes@ninjaexcel.com' },
+  { icon: '✉️', label: 'Email', value: 'cristian.reyes.ti@gmail.com' },
   { icon: '📍', label: 'Ubicación', value: 'Chile' },
   { icon: '⏰', label: 'Respuesta', value: 'Menos de 24h' },
 ];

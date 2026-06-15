@@ -1,0 +1,100 @@
+# Deploy — Despliegue automático a GitHub Pages
+#
+# Se ejecuta cada vez que se hace push (o merge de PR) a la rama `main`.
+# Compila el frontend y lo publica en GitHub Pages automáticamente.
+#
+# URL resultante: https://cristianalonsor.github.io/portafolio/
+#
+# Requiere configuración en GitHub una sola vez:
+#   Settings → Pages → Source → GitHub Actions
+
+name: Deploy to GitHub Pages
+
+# ── Disparador ──────────────────────────────────────────────────────────────
+# Solo se activa en pushes directos a `main` (incluye merges de PRs).
+# No se activa en PRs — para eso existe ci.yml.
+on:
+  push:
+    branches: [main]
+
+# ── Permisos ─────────────────────────────────────────────────────────────────
+# GitHub Pages con GitHub Actions requiere estos permisos especiales.
+# `pages: write`    → permite publicar en GitHub Pages
+# `id-token: write` → permite autenticación OIDC (identidad del workflow)
+# `contents: read`  → permite leer el código del repo
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ── Concurrencia ─────────────────────────────────────────────────────────────
+# Evita que dos deploys corran al mismo tiempo para la misma rama.
+# Si ya hay un deploy en curso y llega otro push, cancela el anterior
+# y corre el más nuevo (`cancel-in-progress: true`).
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+# ── Jobs ─────────────────────────────────────────────────────────────────────
+# Este workflow tiene dos jobs en secuencia: build y deploy.
+# `deploy` usa `needs: build`, lo que significa que espera a que `build` termine.
+jobs:
+
+  # ── Job 1: Compilar ────────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # `npm run build` ejecuta `tsc -b && vite build` (definido en package.json).
+      # VITE_BASE_PATH=/portafolio/ → la app sabrá que vive en ese subdirectorio.
+      # Sin esto, los assets (JS, CSS) se buscarían en / y no cargarían en Pages.
+      - name: Compilar para producción
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /portafolio/
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      # Empaqueta la carpeta `frontend/dist` como un artefacto de Pages.
+      # Un "artefacto" es un archivo temporal que GitHub Actions puede pasar
+      # entre jobs — aquí lo usamos para pasar el build compilado al job de deploy.
+      - name: Empaquetar artefacto para Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  # ── Job 2: Desplegar ──────────────────────────────────────────────────────
+  deploy:
+    # Este job no empieza hasta que `build` termine exitosamente.
+    needs: build
+    runs-on: ubuntu-latest
+
+    # `environment` conecta este job con el ambiente "github-pages" de GitHub.
+    # La URL del deployment aparece en el PR y en el panel de Environments.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Toma el artefacto que subió el job `build` y lo publica en GitHub Pages.
+      # Este action es oficial de GitHub — es la forma recomendada de desplegar.
+      - name: Publicar en GitHub Pages
+        uses: actions/deploy-pages@v4
+        id: deployment
