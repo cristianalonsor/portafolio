@@ -95,20 +95,30 @@ jobs:
       #
       #   -m opencode/deepseek-v4-flash-free
       #     Modelo gratuito sin API key.
-      #     NOTA: NO usar --format json con este modelo — el modelo gratuito
-      #     no soporta salida JSON estructurada. Sin --format, opencode
-      #     renderiza texto plano que funciona perfectamente.
       #
       #   --log-level ERROR
-      #     Suprime logs internos de opencode (como clipboard warnings)
-      #     que en un entorno headless (GitHub Actions) pueden generar ruido.
+      #     Suprime logs internos de opencode para que no contaminen la salida.
+      #
+      # Env vars:
+      #   OPENCODE_DISABLE_PROJECT_CONFIG=1
+      #     Evita que opencode cargue opencode.jsonc del repositorio.
+      #     En CI no necesitamos MCP servers ni comandos personalizados.
+      #     Además evita errores de clipboard en entornos headless.
+      #
+      #   CI=true
+      #     Indica a opencode que se ejecuta en un entorno de CI/CD,
+      #     lo que desactiva features interactivas (como clipboard).
+      #
+      #   GH_TOKEN
+      #     Token de GitHub Actions para que gh CLI pueda operar.
       #
       # El prompt detalla paso a paso lo que opencode debe hacer.
       # github.event.issue.number → número del issue (inyectado por Actions).
-      # GH_TOKEN → variable de entorno con el token de Actions.
       - name: Implementar issue con opencode
         env:
           GH_TOKEN: ${{ github.token }}
+          OPENCODE_DISABLE_PROJECT_CONFIG: "1"
+          CI: "true"
         run: |
           opencode run \
             --dangerously-skip-permissions \
