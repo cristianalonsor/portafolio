@@ -1,9 +1,12 @@
+// dotenv/config debe ser el PRIMER import del proyecto.
+// Los imports de TypeScript se compilan a require() de CommonJS y se ejecutan
+// en orden — si dotenv llega después de contactRouter, process.env aún está vacío
+// cuando mailer.service.ts instancia `new Resend(process.env.RESEND_API_KEY)`.
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import contactRouter from './routes/contact.route';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

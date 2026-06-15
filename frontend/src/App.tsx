@@ -16,8 +16,14 @@ import { ProjectDetail } from './pages/ProjectDetail';
 
 export default function App() {
   return (
-    // BrowserRouter habilita la navegación por historial del browser (URL reales, sin #hash)
-    <BrowserRouter>
+    // BrowserRouter habilita la navegación por historial del browser (URL reales, sin #hash).
+    // `basename` le dice a React Router en qué subdirectorio vive la app.
+    // `import.meta.env.BASE_URL` es la variable de Vite que refleja el `base` del config:
+    //   en local → '/'   (Vite no tiene VITE_BASE_PATH)
+    //   en Pages → '/portafolio/'   (Vite recibe VITE_BASE_PATH=/portafolio/)
+    // Sin basename, los <Link to="/proyectos/slug"> generarían URLs sin el prefijo
+    // y React Router no encontraría la ruta en GitHub Pages.
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Navbar />
       <main>
         {/* Routes renderiza solo el primer Route que coincide con la URL actual */}
