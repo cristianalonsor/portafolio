@@ -16,6 +16,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Permite disparar el deploy manualmente desde la pestaña Actions en GitHub.
+  # Útil para re-deployar sin necesidad de hacer un commit.
+  workflow_dispatch:
 
 # ── Permisos ─────────────────────────────────────────────────────────────────
 # GitHub Pages con GitHub Actions requiere estos permisos especiales.
