@@ -19,4 +19,14 @@ export const projects: Project[] = [
     liveUrl: '',
     repoUrl: 'https://github.com/cristianalonsor/portafolio',
   },
+  {
+    slug: 'ninja-excel',
+    title: 'Ninja Excel',
+    description: 'Plataforma en linea para capacitación en Excel, construida con Angular y Symphony, desplegada en AWS y usando servicios de Camello para la plantilla web de Excel.',
+    longDescription: 'Plataforma web que proporciona clases para usuarios que quieran certificarse y aprender sobre Excel de una forma amigable y simple, con la posibilidad de utilizar una plantilla en tiempo real del mismo programa.',
+    stack: ['Angular', 'TypeScript', 'Angular Material', 'Sonarqube', 'Sentry', 'Jira'],
+    featured: true,
+    liveUrl: 'https://platform.ninjaexcel.com/',
+    repoUrl: '',
+  }
 ];
