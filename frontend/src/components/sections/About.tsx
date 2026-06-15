@@ -12,7 +12,7 @@
 
 /** Métricas numéricas que refuerzan la experiencia del desarrollador. */
 const STATS = [
-  { value: '3+', label: 'Años de experiencia' },
+  { value: '4+', label: 'Años de experiencia' },
   { value: '10+', label: 'Proyectos completados' },
   { value: 'Full', label: 'Stack developer' },
 ];
