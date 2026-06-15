@@ -1,38 +1,36 @@
-/**
- * opencode.yml — Workflow de GitHub Actions que AUTOMATIZA el ciclo completo:
- *
- *   Issue creado → opencode lo lee → implementa código → crea Pull Request
- *
- * ¿Cómo funciona?
- * ────────────────
- * 1. Cuando creas un issue en GitHub, este workflow se activa automáticamente.
- * 2. Instala opencode (CLI de IA) en el runner de GitHub Actions.
- * 3. Ejecuta `opencode run` en modo no interactivo con un prompt que le indica:
- *    a. Leer el issue con `gh issue view`
- *    b. Analizar el código del repositorio (ya clonado)
- *    c. Crear una rama con el formato feat/issue-{numero}-{slug}
- *    d. Implementar los cambios necesarios
- *    e. Hacer commit y push
- *    f. Crear un Pull Request con `gh pr create`
- * 4. Tú solo revisas el PR y lo mergeas si está correcto.
- *
- * ¿Por qué opencode y no Claude Code?
- * ─────────────────────────────────────
- * opencode tiene modelos gratuitos integrados (opencode/deepseek-v4-flash-free)
- * que NO requieren API key de terceros. El costo por ejecución es $0.
- *
- * Modelo gratuito: opencode/deepseek-v4-flash-free
- *   - Sin necesidad de API key externa
- *   - Sin límite de uso en GitHub Actions
- *   - Capacidad de usar herramientas (bash, edit, read, etc.)
- *
- * Requisitos:
- *   - Ninguno. El workflow usa GITHUB_TOKEN (se inyecta automáticamente en Actions).
- *
- * Diferencia con claude.yml:
- *   claude.yml → requiere @claude en comentarios + ANTHROPIC_API_KEY (pago)
- *   opencode.yml → se dispara solo al crear issue + modelo gratuito
- */
+# opencode.yml — Workflow de GitHub Actions que AUTOMATIZA el ciclo completo:
+#
+#   Issue creado → opencode lo lee → implementa código → crea Pull Request
+#
+# ¿Cómo funciona?
+# ────────────────
+# 1. Cuando creas un issue en GitHub, este workflow se activa automáticamente.
+# 2. Instala opencode (CLI de IA) en el runner de GitHub Actions.
+# 3. Ejecuta `opencode run` en modo no interactivo con un prompt que le indica:
+#    a. Leer el issue con `gh issue view`
+#    b. Analizar el código del repositorio (ya clonado)
+#    c. Crear una rama con el formato feat/issue-{numero}-{slug}
+#    d. Implementar los cambios necesarios
+#    e. Hacer commit y push
+#    f. Crear un Pull Request con `gh pr create`
+# 4. Tú solo revisas el PR y lo mergeas si está correcto.
+#
+# ¿Por qué opencode y no Claude Code?
+# ─────────────────────────────────────
+# opencode tiene modelos gratuitos integrados (opencode/deepseek-v4-flash-free)
+# que NO requieren API key de terceros. El costo por ejecución es $0.
+#
+# Modelo gratuito: opencode/deepseek-v4-flash-free
+#   - Sin necesidad de API key externa
+#   - Sin límite de uso en GitHub Actions
+#   - Capacidad de usar herramientas (bash, edit, read, etc.)
+#
+# Requisitos:
+#   - Ninguno. El workflow usa GITHUB_TOKEN (se inyecta automáticamente en Actions).
+#
+# Diferencia con claude.yml:
+#   claude.yml → requiere @claude en comentarios + ANTHROPIC_API_KEY (pago)
+#   opencode.yml → se dispara solo al crear issue + modelo gratuito
 
 name: opencode Auto-Implement
 
