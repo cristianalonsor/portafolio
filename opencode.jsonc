@@ -1,0 +1,133 @@
+/**
+ * opencode.jsonc — Configuración raíz de opencode para el monorepo.
+ *
+ * opencode es una herramienta CLI de IA que opera sobre el código local.
+ * Lee este archivo al arrancar para saber:
+ *   - Qué modelo de IA usar
+ *   - Qué instrucciones de contexto cargar (AGENTS.md, guías)
+ *   - Qué comandos personalizados poner a disposición del usuario
+ *   - Qué servidores MCP conectar (GitHub, etc.)
+ *
+ * Extensión .jsonc → "JSON with Comments".
+ * opencode soporta comentarios en este formato para que podamos
+ * documentar cada campo sin romper la validación del schema.
+ *
+ * Schema: https://opencode.ai/config.json
+ * Usamos $schema para que el editor IDE valide mientras escribimos.
+ */
+
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ── Modelo de IA ─────────────────────────────────────────────────────────
+  // `model` define qué proveedor y modelo usa opencode para sus respuestas.
+  // Formato: "proveedor/modelo".
+  // anthropic/claude-sonnet-4-6 es un modelo de alto razonamiento de Anthropic,
+  // ideal para tareas de programación que requieren análisis profundo.
+  //
+  // Si no se especifica, opencode usa el modelo global de ~/.config/opencode/.
+  "model": "anthropic/claude-sonnet-4-6",
+
+  // ── Archivos de instrucciones ─────────────────────────────────────────────
+  // `instructions` es un array de rutas (relativas al proyecto) que opencode
+  // carga automáticamente como contexto del sistema en cada sesión.
+  // Esto evita tener que explicarle el proyecto cada vez que inicias.
+  //
+  // AGENTS.md → instrucciones de alto nivel del proyecto
+  // docs/guia-tecnica.md → patrones técnicos, hooks, Tailwind, etc.
+  // docs/style-guide.md → sistema de diseño: colores, tipografía, espaciado
+  "instructions": [
+    "AGENTS.md",
+    "docs/guia-tecnica.md",
+    "docs/style-guide.md"
+  ],
+
+  // ── Comandos personalizados ───────────────────────────────────────────────
+  // `command` expone comandos propios del proyecto en el TUI de opencode.
+  // Se invocan escribiendo `@opencode <nombre>` en el chat.
+  //
+  // Cada comando tiene:
+  //   - description: texto que aparece en el autocompletado de @opencode
+  //   - prompt / template: instrucción que se inyecta al agente cuando se ejecuta
+  //   - agent (opcional): si se especifica, delega la tarea a un subagente dedicado
+  //
+  // Un subagente (como "refiner") es un agente especializado con su propio
+  // prompt y reglas. opencode lo invoca internamente para esa tarea.
+  "command": {
+    // deploy: Pregunta al usuario qué desplegar y ejecuta.
+    // Este comando NO tiene agent, así que opencode usa su agente principal
+    // (build) para ejecutar el prompt directamente.
+    "deploy": {
+      "description": "Despliega frontend (GitHub Pages), backend (Railway) o ambos",
+      "prompt": "Pregunta al usuario qué quiere desplegar (frontend, backend o ambos) y ejecuta los pasos correspondientes siguiendo las guías del proyecto."
+    },
+    // deploy:frontend: Template directo para build + push del frontend.
+    // Un "template" se comporta como un prompt pero está diseñado para
+    // comandos cortos y repetitivos.
+    "deploy:frontend": {
+      "description": "Build y push del frontend para activar CI/CD a GitHub Pages",
+      "template": "Ejecuta frontend/build, asegura que no hay errores de TS, haz commit y push a main para que el CI despliegue a GitHub Pages."
+    },
+    // deploy:backend: Template para desplegar backend a Railway.
+    "deploy:backend": {
+      "description": "Despliega el backend a Railway",
+      "template": "Haz build del backend con tsc, haz commit y push. Railway detecta automaticamente los cambios y redeploya."
+    },
+    // issue: Comando completo que orquesta: refinar + desarrollar + desplegar.
+    // Usa el agente principal (no un subagente específico) para coordinar
+    // todo el flujo de trabajo.
+    "issue": {
+      "description": "Workflow completo: refinar issue, crear tarjeta, desarrollar y desplegar",
+      "prompt": "Lee el issue #{ISSUE_NUMBER} de GitHub, refínalo, crea una tarjeta en el Project Board, desarrolla los cambios necesarios y despliega."
+    },
+    // issue:refine: Delega al subagente "refiner" que está definido en
+    // .opencode/agents/refiner.md. El subagente tiene su propio prompt,
+    // permisos y modelo (puede ser diferente al principal).
+    "issue:refine": {
+      "description": "Refina un issue, lo divide en tareas y crea tarjetas en el Project Board",
+      "agent": "refiner",
+      "template": "Refina el issue #{ISSUE_NUMBER} siguiendo tu prompt."
+    },
+    // issue:develop: Delega al subagente "developer".
+    "issue:develop": {
+      "description": "Desarrolla el código para un issue ya refinado",
+      "agent": "developer",
+      "template": "Desarrolla el issue #{ISSUE_NUMBER} siguiendo el plan y tu prompt."
+    },
+    // issue:pr: Crea un Pull Request con los cambios actuales.
+    "issue:pr": {
+      "description": "Crea un Pull Request con los cambios desarrollados",
+      "template": "Crea un PR con los cambios actuales siguiendo el flujo de trabajo del proyecto. Usa gh pr create."
+    }
+  },
+
+  // ── Servidores MCP (Model Context Protocol) ───────────────────────────────
+  // MCP es un protocolo estándar que permite a los LLMs (como Claude) conectarse
+  // con herramientas externas. Piensa en ello como "USB-C para IAs" — un estándar
+  // para que cualquier LLM pueda usar cualquier herramienta.
+  //
+  // opencode soporta dos tipos de servidores MCP:
+  //   - local:   se ejecuta como un proceso hijo (subproceso) en tu máquina
+  //   - remote:  se conecta a un servidor remoto vía HTTP/SSE
+  //
+  // Cada servidor expone "herramientas" (tools) que opencode puede invocar:
+  // por ejemplo, el servidor GitHub expone get_issue, create_issue, etc.
+  //
+  // Configuración:
+  //   type: "local" → se ejecuta localmente con npx
+  //   command: ["npx", "-y", "@modelcontextprotocol/server-github"]
+  //     El flag -y evita que npx pregunte confirmación.
+  //     El paquete @modelcontextprotocol/server-github es el servidor oficial
+  //     de GitHub mantenido por la organización Model Context Protocol.
+  //   enabled: true → se conecta al arrancar (si es false, hay que activarlo manual)
+  //
+  // Autenticación: El servidor GitHub usa la sesión de gh CLI que ya configuramos.
+  // gh (GitHub CLI) gestiona sus tokens OAuth en el keyring del sistema.
+  "mcp": {
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "enabled": true
+    }
+  }
+}
