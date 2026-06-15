@@ -5,3 +5,4 @@ build/
 .env.*
 !.env.example
 .superpowers/
+.DS_Store
