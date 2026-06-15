@@ -55,20 +55,43 @@ Monorepo de portafolio personal: frontend en React + Vite + Tailwind, backend en
 ## Flujo de trabajo con GitHub Issues
 
 <!--
-  Este es el "workflow" que el usuario quiere seguir. Los comandos @opencode
-  (definidos en opencode.jsonc) ejecutan estos pasos automáticamente.
+  Existen DOS modos de trabajar con issues:
 
-  Cada paso usa un subagente diferente (refiner → developer → deployer)
-  para separar responsabilidades: planificar NO es lo mismo que escribir código.
+  A) Manual (local) → Usas opencode en tu terminal con @opencode.
+     Tú controlas cada paso: refinar → desarrollar → desplegar.
+
+  B) Automático (CI/CD) → GitHub Actions ejecuta opencode por ti.
+     Solo creas el issue y opencode implementa y crea el PR automáticamente.
+     Workflow: .github/workflows/opencode.yml
 -->
 
-1. **Issue creado** → Usar `@opencode issue:refine <número>` para refinarlo.
-   - El agente refiner lee el issue, lo divide en tareas y crea tarjetas en el Project Board.
-2. **Refinamiento** → El agente refiner analiza el issue, lo divide en tareas y crea tarjetas en el Project Board.
-3. **Desarrollo** → Usar `@opencode issue:develop <número>` para implementar. El agente crea rama, desarrolla, y crea PR.
-   - La rama sigue el patrón `{tipo}/{slug}` (ej: `feat/contact-form-validation`).
-   - Después de implementar, corre `npx tsc --noEmit` y `npm run build` para verificar.
-4. **Deploy** → Usar `@opencode deploy` para desplegar frontend (GitHub Pages) y/o backend (Railway).
+### A) Modo manual (local)
+
+Usa estos comandos en tu terminal con `@opencode`:
+
+1. `@opencode issue:refine <número>` → Refina el issue y crea tarjetas en el Project Board.
+2. `@opencode issue:develop <número>` → Implementa el código y crea PR.
+3. `@opencode deploy` → Despliega frontend y/o backend.
+
+### B) Modo automático (GitHub Actions) — ¡nuevo!
+
+<!--
+  opencode.yml se activa SOLO con crear el issue en GitHub.
+  opencode corre dentro del runner de GitHub Actions con modelo gratuito
+  (opencode/deepseek-v4-flash-free, que no requiere API key).
+
+  El flujo completo:
+    1. GitHub detecta "issues: opened"
+    2. Runner clona el repo
+    3. npm install -g @opencode-ai/cli
+    4. opencode run lee el issue, implementa, commitea y crea PR
+    5. Tú recibes notificación del PR, lo revisas y mergeas
+-->
+
+1. **Creas un issue** en GitHub → el workflow `opencode.yml` se activa automáticamente.
+2. **opencode** (en el runner de GitHub) lee el issue, analiza el código, implementa los cambios, hace commit y crea un **Pull Request**.
+3. **Tú revisas el PR** y lo mergeas si está correcto.
+4. **El deploy es automático**: al mergear a `main`, el CI/CD despliega frontend y/o backend.
 
 ## Despliegue
 

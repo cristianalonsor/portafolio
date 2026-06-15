@@ -58,7 +58,7 @@ description: >
   y crea tarjetas en el Project Board. Actívalo con
   "opencode issue:refine <número>".
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: opencode/deepseek-v4-flash-free
 permission:
   bash: allow
   edit: deny
