@@ -76,13 +76,85 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # 3. Instalar opencode globalmente con npm
-      # @opencode-ai/cli es el paquete oficial de opencode en npm.
+      # 3. Instalar xsel (proporciona API de clipboard en headless Linux)
+      # Bun (runtime de opencode) intenta leer el portapapeles al iniciar.
+      # En GitHub Actions no hay X11/Wayland, entonces Bun lanza:
+      #   "Cannot read 'clipboard' (this model does not support image input)"
+      # xsel provee una implementación de clipboard que no crashea.
+      - name: Instalar dependencias de clipboard
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xsel >/dev/null 2>&1 || true
+
+      # 4. Instalar opencode globalmente con npm
+      # El paquete oficial es "opencode-ai" (no @opencode-ai/cli).
       # La instalación es rápida (~5 segundos).
       - name: Instalar opencode
-        run: npm install -g @opencode-ai/cli
+        run: npm install -g opencode-ai
 
-      # 4. Ejecutar opencode en modo NO INTERACTIVO
+      # 5. Escribir el prompt a un archivo temporal
+      #
+      # Usamos un archivo en vez de pasar el prompt como argumento CLI por:
+      #   a) Evitar problemas de escaping en GitHub Actions
+      #   b) Mantener el prompt legible y editable
+      #   c) Pasar por stdin (no como argumento) para que opencode no intente
+      #      inicializar el TUI al detectar un argumento vacío
+      #
+      # Nota: Usamos printf + expansion de ${{ }} de GitHub Actions.
+      # El delimiter 'PROMPT_EOF' no está entrecomillado para que
+      # no se expandan variables de shell (pero ${{ }} de Actions sí se expanden).
+      - name: Escribir prompt
+        run: |
+          cat > /tmp/prompt.md << PROMPT_EOF
+          Eres un desarrollador automatizado en GitHub Actions.
+
+          Te han asignado el issue #${{ github.event.issue.number }} de este repositorio.
+
+          ## Paso 1: Leer el issue
+          Ejecuta: gh issue view ${{ github.event.issue.number }} --json title,body,labels
+          Analiza el título, descripción y labels para entender qué hay que hacer.
+
+          ## Paso 2: Crear una rama
+          Crea una rama desde main con el formato: feat/issue-${{ github.event.issue.number }}-{slug}
+          donde slug son 2-3 palabras del título en ingles, separadas por guiones.
+          Ejecuta:
+            git checkout main
+            git pull origin main
+            git checkout -b feat/issue-${{ github.event.issue.number }}-{slug}
+
+          ## Paso 3: Implementar
+          Lee los archivos relevantes del proyecto (usa cat o read de archivo).
+          Entiende la estructura del monorepo:
+            - frontend/ → React + TypeScript + Vite + Tailwind
+            - backend/ → Express + TypeScript + Resend
+          Implementa los cambios siguiendo las convenciones del proyecto.
+          Verifica con npx tsc --noEmit en frontend/ y backend/ si aplica.
+
+          ## Paso 4: Commit y push
+          Ejecuta:
+            git add -A
+            git commit -m 'feat: implementa issue #${{ github.event.issue.number }} - {titulo}'
+            git push origin feat/issue-${{ github.event.issue.number }}-{slug}
+
+          ## Paso 5: Crear Pull Request
+          Ejecuta:
+            gh pr create \
+              --title 'Implementa issue #${{ github.event.issue.number }}: {titulo}' \
+              --body 'Closes #${{ github.event.issue.number }}
+
+          ## Cambios realizados
+          - {lista de cambios}
+
+          > PR generado automáticamente por opencode' \
+              --base main
+
+          ## Reglas importantes
+          - No modifiques archivos que no estén relacionados con el issue
+          - Sigue las convenciones del proyecto (import type, JSDoc, etc.)
+          - Si algo no está claro, haz tu mejor interpretacion
+          - NO esperes confirmacion del usuario — ejecuta directamente
+          - El repositorio ya esta clonado en el directorio actual
+          PROMPT_EOF
+
+      # 6. Ejecutar opencode en modo NO INTERACTIVO
       #
       # opencode run: ejecuta opencode con un mensaje y termina.
       #   No requiere TTY ni interacción humana.
@@ -99,76 +171,40 @@ jobs:
       #   --log-level ERROR
       #     Suprime logs internos de opencode para que no contaminen la salida.
       #
+      # Por qué </dev/null:
+      #   Bun (runtime de opencode) intenta leer el portapapeles al iniciar
+      #   si detecta un TTY. Redirigir stdin desde /dev/null fuerza a Bun
+      #   a no usar características interactivas.
+      #
+      # Por qué xsel (instalado arriba):
+      #   Bun usa la API de clipboard del sistema. En headless Linux sin
+      #   xsel/xclip, Bun lanza: "Cannot read 'clipboard' (this model
+      #   does not support image input)". xsel provee una implementación
+      #   funcional de clipboard que devuelve vacío en vez de crashear.
+      #
       # Env vars:
-      #   OPENCODE_DISABLE_PROJECT_CONFIG=1
-      #     Evita que opencode cargue opencode.jsonc del repositorio.
-      #     En CI no necesitamos MCP servers ni comandos personalizados.
-      #     Además evita errores de clipboard en entornos headless.
-      #
-      #   CI=true
-      #     Indica a opencode que se ejecuta en un entorno de CI/CD,
-      #     lo que desactiva features interactivas (como clipboard).
-      #
       #   GH_TOKEN
       #     Token de GitHub Actions para que gh CLI pueda operar.
       #
-      # El prompt detalla paso a paso lo que opencode debe hacer.
-      # github.event.issue.number → número del issue (inyectado por Actions).
+      #   OPENCODE_DISABLE_PROJECT_CONFIG: "1"
+      #     Evita que opencode cargue opencode.jsonc del repositorio.
+      #     En CI no necesitamos MCP servers ni comandos personalizados.
+      #
+      #   CI: "true"
+      #     Indica a opencode que se ejecuta en un entorno de CI/CD,
+      #     lo que desactiva features interactivas (como clipboard).
+      #
+      #   TERM: dumb
+      #     Evita que opencode active features de terminal (colores, etc.).
       - name: Implementar issue con opencode
         env:
           GH_TOKEN: ${{ github.token }}
           OPENCODE_DISABLE_PROJECT_CONFIG: "1"
           CI: "true"
+          TERM: dumb
         run: |
           opencode run \
             --dangerously-skip-permissions \
             -m opencode/deepseek-v4-flash-free \
             --log-level ERROR \
-            "Eres un desarrollador automatizado en GitHub Actions.
-
-             Te han asignado el issue #${{ github.event.issue.number }} de este repositorio.
-
-             ## Paso 1: Leer el issue
-             Ejecuta: gh issue view ${{ github.event.issue.number }} --json title,body,labels
-             Analiza el título, descripción y labels para entender qué hay que hacer.
-
-             ## Paso 2: Crear una rama
-             Crea una rama desde main con el formato: feat/issue-${{ github.event.issue.number }}-{slug}
-             donde slug son 2-3 palabras del título en ingles, separadas por guiones.
-             Ejecuta:
-               git checkout main
-               git pull origin main
-               git checkout -b feat/issue-${{ github.event.issue.number }}-{slug}
-
-             ## Paso 3: Implementar
-             Lee los archivos relevantes del proyecto (usa cat o read de archivo).
-             Entiende la estructura del monorepo:
-               - frontend/ → React + TypeScript + Vite + Tailwind
-               - backend/ → Express + TypeScript + Resend
-             Implementa los cambios siguiendo las convenciones del proyecto.
-             Verifica con npx tsc --noEmit en frontend/ y backend/ si aplica.
-
-             ## Paso 4: Commit y push
-             Ejecuta:
-               git add -A
-               git commit -m 'feat: implementa issue #${{ github.event.issue.number }} - {titulo}'
-               git push origin feat/issue-${{ github.event.issue.number }}-{slug}
-
-             ## Paso 5: Crear Pull Request
-             Ejecuta:
-               gh pr create \
-                 --title 'Implementa issue #${{ github.event.issue.number }}: {titulo}' \
-                 --body 'Closes #${{ github.event.issue.number }}
-
-             ## Cambios realizados
-             - {lista de cambios}
-
-             > PR generado automáticamente por opencode' \
-                 --base main
-
-             ## Reglas importantes
-             - No modifiques archivos que no estén relacionados con el issue
-             - Sigue las convenciones del proyecto (import type, JSDoc, etc.)
-             - Si algo no está claro, haz tu mejor interpretacion
-             - NO esperes confirmacion del usuario — ejecuta directamente
-             - El repositorio ya esta clonado en el directorio actual"
+            "$(cat /tmp/prompt.md)" </dev/null
