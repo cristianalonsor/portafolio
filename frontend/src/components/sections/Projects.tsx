@@ -1,3 +1,14 @@
+/**
+ * Projects.tsx — sección de proyectos del portafolio.
+ *
+ * Renderiza un grid de cards, una por cada proyecto en data/projects.ts.
+ * Cada card es un <Link> que navega a /proyectos/:slug para ver el detalle.
+ *
+ * Elementos visuales de cada card:
+ *   - Barra superior: gradiente coral→orange→yellow, intensifica en hover
+ *   - Número decorativo: índice 01, 02… con opacidad muy baja (efecto de fondo)
+ *   - Arrow hint: aparece en hover con group-hover, se desplaza 1px hacia la derecha
+ */
 import { Link } from 'react-router-dom';
 import { projects } from '../../data/projects';
 

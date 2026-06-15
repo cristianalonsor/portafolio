@@ -1,6 +1,17 @@
+/**
+ * Contact.tsx — sección de contacto del portafolio.
+ *
+ * Layout de 5 columnas (lg):
+ *   - 2 columnas: información de contacto (CONTACT_INFO)
+ *   - 3 columnas: formulario controlado por el hook useContactForm
+ *
+ * La lógica del formulario (estado, validación, fetch al backend) vive
+ * completamente en useContactForm — este componente solo presenta la UI.
+ */
 import { useContactForm } from '../../hooks/useContactForm';
 import { Button } from '../ui/Button';
 
+/** Datos de contacto mostrados en la columna izquierda. */
 const CONTACT_INFO = [
   { icon: '✉️', label: 'Email', value: 'creyes@ninjaexcel.com' },
   { icon: '📍', label: 'Ubicación', value: 'Chile' },
@@ -10,6 +21,7 @@ const CONTACT_INFO = [
 export function Contact() {
   const { form, status, error, handleChange, handleSubmit } = useContactForm();
 
+  // inputClass evita repetir las mismas 80+ clases Tailwind en cada <input> y <textarea>
   const inputClass =
     'w-full bg-slate/40 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-muted/60 focus:outline-none focus:border-coral/60 focus:bg-slate/60 transition-all text-sm';
 
@@ -45,6 +57,7 @@ export function Contact() {
 
           {/* Formulario */}
           <div className="lg:col-span-3">
+            {/* status === 'success': reemplaza el form por un mensaje de confirmación */}
             {status === 'success' ? (
               <div className="h-full flex items-center justify-center bg-teal/5 border border-teal/20 rounded-2xl p-12 text-center">
                 <div>
@@ -73,6 +86,7 @@ export function Contact() {
                   <label className="text-xs text-muted/60 font-mono uppercase tracking-wider mb-1.5 block">Mensaje</label>
                   <textarea name="message" value={form.message} onChange={handleChange} placeholder="Cuéntame sobre tu proyecto..." required rows={5} className={`${inputClass} resize-none`} />
                 </div>
+                {/* status === 'error': muestra el mensaje de error del hook encima del botón */}
                 {status === 'error' && (
                   <p className="text-coral text-sm flex items-center gap-2">
                     <span>⚠️</span> {error}

@@ -1,9 +1,23 @@
+/**
+ * About.tsx — sección "Sobre mí" del portafolio.
+ *
+ * Presenta la bio del desarrollador en un layout de 5 columnas (lg):
+ *   - 3 columnas: texto libre + estadísticas numéricas (STATS)
+ *   - 2 columnas: tarjetas de área tecnológica (CHIPS)
+ *
+ * STATS y CHIPS son constantes de módulo (fuera del componente) porque
+ * son datos estáticos que no cambian entre renders — evita recrearlos
+ * en cada render innecesariamente.
+ */
+
+/** Métricas numéricas que refuerzan la experiencia del desarrollador. */
 const STATS = [
   { value: '3+', label: 'Años de experiencia' },
   { value: '10+', label: 'Proyectos completados' },
   { value: 'Full', label: 'Stack developer' },
 ];
 
+/** Tarjetas de área tecnológica con icono, nombre y stack principal. */
 const CHIPS = [
   { icon: '⚡', label: 'Frontend', desc: 'React · Angular · TypeScript' },
   { icon: '🛠', label: 'Backend', desc: 'Node.js · Express · REST' },
