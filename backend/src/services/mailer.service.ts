@@ -1,14 +1,19 @@
 import { Resend } from 'resend';
 import { ContactPayload } from '../types/contact.types';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 /**
  * Sends a contact email to the portfolio owner using the Resend API.
  * The email includes the sender's name, email, subject, and message.
  * Throws an error if the email fails to send.
+ *
+ * Resend se instancia dentro de la función (lazy initialization) en lugar
+ * de al importar el módulo. Esto evita que el servidor crashee al arrancar
+ * si la variable RESEND_API_KEY aún no está disponible en process.env
+ * (puede ocurrir en Railway cuando los vars se inyectan después del import).
  */
 export async function sendContactEmail(payload: ContactPayload): Promise<void> {
+  // Instancia creada en cada llamada para garantizar que lee process.env actualizado
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const { name, email, subject, message } = payload;
 
   const { error } = await resend.emails.send({
