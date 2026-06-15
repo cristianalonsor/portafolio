@@ -1,3 +1,11 @@
+/**
+ * data/projects.ts — fuente de datos de proyectos del portafolio.
+ *
+ * Array estático: no hay base de datos. Para agregar un proyecto:
+ *   1. Añadir un objeto siguiendo la interfaz `Project`
+ *   2. Asegurarse de que `slug` sea único y sin espacios (se usa en la URL)
+ *   3. Guardar — el cambio aparece automáticamente en la UI
+ */
 import type { Project } from '../types';
 
 export const projects: Project[] = [

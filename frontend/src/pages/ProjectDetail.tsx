@@ -1,12 +1,23 @@
+/**
+ * ProjectDetail.tsx — página de detalle de un proyecto (ruta "/proyectos/:slug").
+ *
+ * Lee el parámetro :slug de la URL, busca el proyecto en el array estático
+ * y renderiza su información completa: título, descripción larga, stack y CTAs.
+ *
+ * Muestra un fallback 404 suave si el slug no coincide con ningún proyecto.
+ */
 import { useParams, Link } from 'react-router-dom';
 import { projects } from '../data/projects';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 
 export function ProjectDetail() {
+  // useParams extrae los segmentos dinámicos de la URL actual (:slug → { slug: "portafolio-personal" })
   const { slug } = useParams<{ slug: string }>();
+  // find recorre el array y retorna el primer elemento donde p.slug === slug, o undefined si no hay match
   const project = projects.find(p => p.slug === slug);
 
+  // Fallback 404 suave: no lanza error, solo informa al usuario y ofrece volver
   if (!project) {
     return (
       <div className="min-h-screen bg-dark flex flex-col items-center justify-center text-center px-6">

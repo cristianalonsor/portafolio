@@ -1,3 +1,11 @@
+/**
+ * Footer.tsx — pie de página del portafolio.
+ *
+ * Renderiza tres elementos en fila (o columna en móvil):
+ *   - Logo "CR." que hace scroll al hero
+ *   - Créditos de autoría
+ *   - Stack tecnológico del proyecto en monospace
+ */
 export function Footer() {
   return (
     <footer className="bg-dark border-t border-white/5 py-10 px-6">
