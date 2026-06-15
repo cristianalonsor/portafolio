@@ -97,9 +97,13 @@ jobs:
       #
       #   -m opencode/deepseek-v4-flash-free
       #     Modelo gratuito sin API key.
+      #     NOTA: NO usar --format json con este modelo — el modelo gratuito
+      #     no soporta salida JSON estructurada. Sin --format, opencode
+      #     renderiza texto plano que funciona perfectamente.
       #
-      #   --format json
-      #     Salida en JSON (por si queremos parsear resultados después).
+      #   --log-level ERROR
+      #     Suprime logs internos de opencode (como clipboard warnings)
+      #     que en un entorno headless (GitHub Actions) pueden generar ruido.
       #
       # El prompt detalla paso a paso lo que opencode debe hacer.
       # github.event.issue.number → número del issue (inyectado por Actions).
@@ -111,7 +115,7 @@ jobs:
           opencode run \
             --dangerously-skip-permissions \
             -m opencode/deepseek-v4-flash-free \
-            --format json \
+            --log-level ERROR \
             "Eres un desarrollador automatizado en GitHub Actions.
 
              Te han asignado el issue #${{ github.event.issue.number }} de este repositorio.
