@@ -198,7 +198,11 @@ jobs:
       #     Evita que opencode active features de terminal (colores, etc.).
       - name: Implementar issue con opencode
         env:
-          GH_TOKEN: ${{ github.token }}
+          # GH_TOKEN: Usamos PAT en vez de GITHUB_TOKEN porque
+          # GITHUB_TOKEN no puede crear PRs desde Actions (restricción de seguridad).
+          # El PAT se crea en GitHub Settings > Developer settings > Personal access tokens
+          # con scope "repo" y se guarda como secret GH_PAT.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
           OPENCODE_DISABLE_PROJECT_CONFIG: "1"
           CI: "true"
           TERM: dumb
