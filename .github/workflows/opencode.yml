@@ -84,7 +84,19 @@ jobs:
       - name: Instalar dependencias de clipboard
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xsel >/dev/null 2>&1 || true
 
-      # 4. Instalar opencode globalmente con npm
+      # 4. Autenticar gh CLI con el PAT
+      #
+      # opencode SANITIZA las variables GH_TOKEN y GITHUB_TOKEN por seguridad
+      # (las borra antes de ejecutar subprocesos). Por eso, aunque el workflow
+      # tenga GH_TOKEN en env, gh CLI no puede usarlo dentro de opencode.
+      #
+      # Solución: autenticar gh CLI directamente con gh auth login --with-token.
+      # gh guarda el token en ~/.config/gh/hosts.yml, y opencode puede usar
+      # gh CLI sin depender de la env var GH_TOKEN.
+      - name: Autenticar gh CLI
+        run: echo "${{ secrets.GH_PATH }}" | gh auth login --with-token
+
+      # 5. Instalar opencode globalmente con npm
       # El paquete oficial es "opencode-ai" (no @opencode-ai/cli).
       # La instalación es rápida (~5 segundos).
       - name: Instalar opencode
@@ -182,27 +194,25 @@ jobs:
       #   does not support image input)". xsel provee una implementación
       #   funcional de clipboard que devuelve vacío en vez de crashear.
       #
-      # Env vars:
-      #   GH_TOKEN
-      #     Token de GitHub Actions para que gh CLI pueda operar.
+      # Por qué gh auth login (paso anterior):
+      #   opencode SANITIZA GH_TOKEN y GITHUB_TOKEN por seguridad (los borra
+      #   antes de ejecutar subprocesos). gh auth login guarda el token en
+      #   ~/.config/gh/hosts.yml, por lo que gh CLI funciona sin depender
+      #   de env vars. opencode puede ejecutar gh commands sin problemas.
       #
+      # NOTA: No pasamos GH_TOKEN en env porque opencode lo sanitiza.
+      #
+      # Env vars:
       #   OPENCODE_DISABLE_PROJECT_CONFIG: "1"
       #     Evita que opencode cargue opencode.jsonc del repositorio.
-      #     En CI no necesitamos MCP servers ni comandos personalizados.
       #
       #   CI: "true"
-      #     Indica a opencode que se ejecuta en un entorno de CI/CD,
-      #     lo que desactiva features interactivas (como clipboard).
+      #     Indica a opencode que se ejecuta en un entorno de CI/CD.
       #
       #   TERM: dumb
-      #     Evita que opencode active features de terminal (colores, etc.).
+      #     Evita que opencode active features de terminal.
       - name: Implementar issue con opencode
         env:
-          # GH_TOKEN: Usamos PAT en vez de GITHUB_TOKEN porque
-          # GITHUB_TOKEN no puede crear PRs desde Actions (restricción de seguridad).
-          # El PAT se crea en GitHub Settings > Developer settings > Personal access tokens
-          # con scope "repo" y se guarda como secret GH_PAT.
-          GH_TOKEN: ${{ secrets.GH_PAT }}
           OPENCODE_DISABLE_PROJECT_CONFIG: "1"
           CI: "true"
           TERM: dumb
