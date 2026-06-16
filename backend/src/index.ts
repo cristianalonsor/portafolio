@@ -4,6 +4,8 @@
 // cuando mailer.service.ts instancia `new Resend(process.env.RESEND_API_KEY)`.
 import 'dotenv/config';
 
+console.log('Bienvenido');
+
 import express from 'express';
 import cors from 'cors';
 import contactRouter from './routes/contact.route';

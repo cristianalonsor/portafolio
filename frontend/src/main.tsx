@@ -7,6 +7,8 @@
  * StrictMode: envuelve la app para detectar problemas potenciales en
  * desarrollo (efectos dobles, APIs obsoletas). No afecta producción.
  */
+console.log('Bienvenido');
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
