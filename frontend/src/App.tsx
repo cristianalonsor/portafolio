@@ -8,6 +8,7 @@
  * Navbar y Footer se renderizan fuera del <Routes> para que aparezcan
  * en todas las rutas sin repetir código.
  */
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -15,6 +16,10 @@ import { Home } from './pages/Home';
 import { ProjectDetail } from './pages/ProjectDetail';
 
 export default function App() {
+  useEffect(() => {
+    console.log('Hola Mundo');
+  }, []);
+
   return (
     // BrowserRouter habilita la navegación por historial del browser (URL reales, sin #hash).
     // `basename` le dice a React Router en qué subdirectorio vive la app.
