@@ -35,7 +35,7 @@ name: opencode Auto-Implement
 # se aplica un label. La condición del job filtra por 'autoimplement'.
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 # ── Permisos ──────────────────────────────────────────────────────────────────
 # contents: write      → necesario para pushear ramas nuevas
@@ -49,11 +49,11 @@ permissions:
 jobs:
   # ── Job: implement ─────────────────────────────────────────────────────────
   implement:
-    # Solo ejecuta si el issue está abierto Y tiene el label 'autoimplement'.
-    # Esto evita que el workflow corra en issues de discusión o bugs no implementables.
-    if: |
-      github.event.issue.state == 'open' &&
-      contains(toJson(github.event.issue.labels), '"name":"autoimplement"')
+    # Solo ejecuta cuando se aplica el label 'autoimplement' a un issue abierto.
+    # github.event.label.name → el label específico que acaba de aplicarse.
+    # Esto es más confiable que toJson() que serializa con espacios ("name": "value")
+    # y hace que contains() nunca encuentre "name":"value" (sin espacio).
+    if: github.event.issue.state == 'open' && github.event.label.name == 'autoimplement'
 
     runs-on: ubuntu-latest
 
