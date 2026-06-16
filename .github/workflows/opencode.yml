@@ -125,7 +125,7 @@ jobs:
       #   b) Mantener el prompt legible y editable
       - name: Escribir prompt
         run: |
-          cat > /tmp/prompt.md << PROMPT_EOF
+          cat > /tmp/prompt.md << 'PROMPT_EOF'
           Eres un desarrollador automatizado en GitHub Actions.
 
           Te han asignado el issue #${{ github.event.issue.number }} de este repositorio.
