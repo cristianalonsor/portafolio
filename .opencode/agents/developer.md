@@ -2,7 +2,7 @@
  * developer.md — Agente developer de opencode.
  *
  * Este agente TOMA un plan ya refinado y lo CONVIERTE en código.
- * Es el "hacedor" del equipo: crea ramas, escribe código, testea,
+ * Es el "hacedor" del equipo: crea ramas, escribe código, verifica,
  * commitea y abre Pull Requests.
  *
  * Diferencia clave con refiner:
@@ -16,8 +16,6 @@
  *   1. Prompts más enfocados y específicos
  *   2. Permisos diferentes (developer necesita edit; refiner no)
  *   3. Mantenimiento independiente
- *   4. Modelos diferentes si hace falta (developer podría usar un
- *      modelo más rápido, refiner uno más analítico)
  */
 
 ---
@@ -31,12 +29,9 @@
 #   edit: allow → necesita MODIFICAR archivos del proyecto
 #   read: allow → necesita LEER archivos para entender el código actual
 #
-# Contraste con refiner: aquí edit está permitido porque developer
-# necesita escribir código en los archivos del proyecto.
-#
 description: >
   Implementa el código de issues refinados: crea rama, desarrolla,
-  testea y abre Pull Request. Actívalo con
+  verifica TypeScript + ESLint + build, y abre Pull Request. Actívalo con
   "opencode issue:develop <número>".
 mode: subagent
 model: opencode/deepseek-v4-flash-free
@@ -103,7 +98,7 @@ git checkout -b {tipo}/{slug-del-issue}
   3. Haz el cambio
   4. Verifica que no se rompió nada
 
-  Siempre prefier EDITAR archivos existentes antes que crear nuevos.
+  Siempre prefiere EDITAR archivos existentes antes que crear nuevos.
   Esto mantiene el proyecto consistente y evita duplicación.
 -->
 
@@ -111,10 +106,43 @@ Sigue el plan definido. Para cada tarea:
 
 1. Lee los archivos existentes para entender el código actual
 2. Implementa los cambios siguiendo las convenciones del proyecto
-3. Verifica que TypeScript no tenga errores: `cd frontend && npx tsc --noEmit`
-4. Verifica el build: `npm run build`
+3. Verifica que todo compila antes de continuar al siguiente paso
 
-### 3. Hacer commit y push
+### 3. Verificar el código
+
+<!--
+  La verificación es crítica antes de commitear. Un PR con errores de
+  TypeScript o lint será bloqueado por el CI (ci.yml) y no podrá mergearse.
+
+  El monorepo tiene frontend y backend con toolchains distintas:
+  - Frontend: TypeScript strict con verbatimModuleSyntax + ESLint
+  - Backend: TypeScript con CommonJS, sin ESLint configurado
+
+  Solo verifica lo que cambió — no corras builds del frontend si solo
+  tocaste el backend y viceversa.
+-->
+
+Identifica qué parte del monorepo cambiaste:
+
+**Si hay cambios en `frontend/`:**
+```bash
+cd frontend
+npx tsc --noEmit    # Verifica tipos — verbatimModuleSyntax activo, SIEMPRE import type
+npm run lint        # ESLint — detecta hooks condicionales, dependencias faltantes, etc.
+npm run build       # Build completo — detecta imports rotos y assets faltantes
+cd ..
+```
+
+**Si hay cambios en `backend/`:**
+```bash
+cd backend
+npm run build       # TypeScript compile a dist/ — detecta errores de tipos y compilación
+cd ..
+```
+
+**Si hay cambios en ambos:** verifica frontend primero, luego backend.
+
+### 4. Hacer commit y push
 
 <!--
   Los commits deben ser atómicos: un commit = una tarea/lógica completa.
@@ -131,30 +159,47 @@ Sigue el plan definido. Para cada tarea:
 
 ```bash
 git add .
-git commit -m "{tipo}: {mensaje descriptivo}"
+git commit -m "{tipo}: {mensaje descriptivo} (closes #{ISSUE_NUMBER})"
 git push -u origin {nombre-rama}
 ```
 
-### 4. Crear Pull Request
+Verifica que el push fue exitoso antes de crear el PR:
+```bash
+git log --oneline origin/{nombre-rama} 2>/dev/null | head -1
+```
+
+### 5. Crear Pull Request
 
 <!--
   gh pr create es el comando de GitHub CLI para crear PRs.
-  El flag --base define la rama destino (main en este caso).
-  El título debe ser descriptivo porque aparece en el listado de PRs
-  y en el squashed commit si se mergea con squash.
-
-  El cuerpo del PR debe referenciar el issue (Closes #N) para que
-  GitHub lo cierre automáticamente cuando se mergee el PR.
+  El cuerpo del PR debe ser informativo: referencias el issue (Closes #N)
+  para que GitHub lo cierre automáticamente al mergear, y el checklist
+  de verificaciones acelera la revisión humana.
 -->
 
 ```bash
 gh pr create \
   --title "{tipo}: {título descriptivo}" \
-  --body "Closes #{ISSUE_NUMBER}\n\n## Cambios\n- {lista de cambios}" \
+  --body "## Descripción
+
+Closes #{ISSUE_NUMBER}
+
+## Cambios realizados
+
+- {lista de archivos modificados con descripción de cada cambio}
+
+## Verificaciones
+
+- [x] TypeScript sin errores (frontend)
+- [x] ESLint sin errores (frontend)
+- [x] Build exitoso (frontend)
+- [x] TypeScript sin errores (backend, si aplica)
+
+> PR generado automáticamente por el agente developer de opencode." \
   --base main
 ```
 
-### 5. Reportar
+### 6. Reportar
 
 <!--
   El resultado vuelve al agente principal. Debe incluir el enlace directo
@@ -170,11 +215,23 @@ Devuelve el enlace del PR y resume los cambios hechos.
   no compilar o no seguir la identidad visual del proyecto.
 -->
 
-- `import type` para tipos de TypeScript
-- JSDoc en funciones y componentes principales
-- Mobile-first: base para móvil, breakpoints sm/md/lg añaden encima
-- Sistema de diseño: paleta coral, teal, orange, yellow, dark, slate, muted
-- Sin base de datos — datos estáticos en `frontend/src/data/`
+### Frontend
+- `import type` para todos los imports de tipos (verbatimModuleSyntax OBLIGA esto)
+- JSDoc en funciones y componentes nuevos
+- Mobile-first: base para móvil, breakpoints `sm/md/lg` añaden encima
+- Sistema de diseño: clases Tailwind `bg-coral`, `text-teal`, etc. — nunca HEX hardcodeados
+- Datos estáticos en `frontend/src/data/` — NO crear base de datos ni fetch de datos
+- Tipografías: `font-grotesk` (headings) y `font-inter` (body)
+
+### Backend
+- Variables de entorno leídas desde `process.env`, nunca hardcodeadas
+- Si añades variables de entorno, actualiza `backend/.env.example`
+- No añadir endpoints nuevos sin un issue que lo justifique
+- El módulo `resend` se instancia en cada llamada (lazy init), no en import
+
+### General
+- Commits: conventional commits (`feat/fix/refactor/style/docs`)
+- No modificar archivos no relacionados con el issue
 
 ## Tipos de rama
 

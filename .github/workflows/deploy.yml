@@ -39,8 +39,8 @@ concurrency:
   cancel-in-progress: true
 
 # ── Jobs ─────────────────────────────────────────────────────────────────────
-# Este workflow tiene dos jobs en secuencia: build y deploy.
-# `deploy` usa `needs: build`, lo que significa que espera a que `build` termine.
+# Este workflow tiene tres jobs en secuencia: build → deploy → verify.
+# Cada job espera al anterior con `needs`.
 jobs:
 
   # ── Job 1: Compilar ────────────────────────────────────────────────────────
@@ -101,3 +101,29 @@ jobs:
       - name: Publicar en GitHub Pages
         uses: actions/deploy-pages@v4
         id: deployment
+
+  # ── Job 3: Verificar ──────────────────────────────────────────────────────
+  # Smoke test post-deploy: verifica que el sitio responde HTTP 200.
+  # Si el build compiló pero el deploy falló silenciosamente (token expirado,
+  # artefacto corrupto, fallo de Pages), este job lo detecta y queda en rojo.
+  verify:
+    name: Verificar GitHub Pages
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # Espera hasta 3 minutos (6 intentos × 30s) para que Pages propague el deploy.
+      # Pages puede tardar hasta 2 minutos en servir el nuevo contenido.
+      - name: Smoke test — verificar que el sitio responde
+        run: |
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://cristianalonsor.github.io/portafolio/)
+            if [ "$STATUS" = "200" ]; then
+              echo "Sitio disponible (HTTP $STATUS) en el intento $i"
+              exit 0
+            fi
+            echo "Intento $i: HTTP $STATUS — esperando 30s para que Pages propague..."
+            sleep 30
+          done
+          echo "El sitio no respondió HTTP 200 después de 3 minutos"
+          exit 1
