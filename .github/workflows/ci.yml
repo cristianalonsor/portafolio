@@ -5,48 +5,38 @@
 # hacia las ramas `main` o `docs`.
 #
 # Objetivo: garantizar que ningún código roto entre a las ramas principales.
-# Si este workflow falla, GitHub bloquea el merge del PR.
+# Si alguno de estos jobs falla, GitHub bloquea el merge del PR.
+#
+# Jobs:
+#   check-frontend → TypeScript + ESLint + build del frontend
+#   check-backend  → TypeScript + build del backend (corre en paralelo)
 
 name: CI
 
-# ── Disparador ──────────────────────────────────────────────────────────────
-# `on` define cuándo se ejecuta este workflow.
-# `pull_request` → se dispara cuando se abre, actualiza o reabre un PR.
-# `branches` → solo PRs que apunten a estas ramas activan el workflow.
 on:
   pull_request:
     branches: [main, docs]
 
-# ── Jobs ────────────────────────────────────────────────────────────────────
-# Un workflow tiene uno o más "jobs". Cada job corre en su propia máquina virtual.
-# Los jobs corren en paralelo por defecto (aquí solo tenemos uno).
+# Permisos mínimos — solo necesitamos leer el código
+permissions:
+  contents: read
+
 jobs:
 
-  # "check" es el nombre del job — puede ser cualquier string descriptivo
-  check:
-    # Tipo de máquina virtual donde corre el job.
-    # `ubuntu-latest` es la más común y es gratuita en GitHub Actions.
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  check-frontend:
+    name: Frontend — TypeScript + Lint + Build
     runs-on: ubuntu-latest
 
-    # `defaults.run.working-directory` evita repetir `working-directory: frontend`
-    # en cada step. Todo `run` de este job parte desde la carpeta frontend/.
     defaults:
       run:
         working-directory: frontend
 
-    # ── Steps ─────────────────────────────────────────────────────────────
-    # Un job tiene una secuencia de "steps". Se ejecutan en orden.
-    # Si un step falla, los siguientes no se ejecutan (el job falla).
     steps:
 
-      # Descarga el código del repositorio en la máquina virtual.
-      # Sin esto, los siguientes steps no tendrían acceso a los archivos.
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      # Instala Node.js en la máquina virtual.
-      # `cache: npm` guarda la carpeta de módulos entre ejecuciones → builds más rápidos.
-      # `cache-dependency-path` le dice a GitHub qué archivo usar como clave de caché.
       - name: Instalar Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -55,23 +45,55 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       # `npm ci` instala las dependencias exactas del package-lock.json.
-      # Diferencia con `npm install`: ci es determinista y falla si el lockfile
-      # no coincide con package.json — garantiza reproducibilidad.
+      # Es determinista y falla si el lockfile no coincide — garantiza reproducibilidad.
       - name: Instalar dependencias
         run: npm ci
 
       # Verifica que no haya errores de TypeScript.
       # `--noEmit` → solo chequea tipos, no genera archivos .js.
-      # Si hay errores de tipos, este step falla y el PR no puede mergearse.
       - name: Verificar TypeScript
         run: npx tsc --noEmit
 
-      # Compila el proyecto completo como si fuera a producción.
-      # Detecta errores que TypeScript solo no atrapa (imports rotos, assets faltantes).
-      # VITE_BASE_PATH → le dice a Vite que la app vive en /portafolio/ en GitHub Pages.
-      # VITE_API_URL   → URL del backend (guardada como secret en el repo de GitHub).
+      # ESLint detecta problemas que TypeScript no atrapa:
+      # hooks llamados condicionalmente, dependencias faltantes en useEffect, etc.
+      - name: ESLint
+        run: npm run lint
+
+      # Compilación completa como si fuera a producción.
+      # Detecta imports rotos y assets faltantes que TypeScript no atrapa.
       - name: Compilar para producción
         run: npm run build
         env:
           VITE_BASE_PATH: /portafolio/
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+  # ── Backend ───────────────────────────────────────────────────────────────
+  # Corre en paralelo con check-frontend — son independientes.
+  # Un backend roto no debe llegar a producción sin detectarse en CI.
+  check-backend:
+    name: Backend — TypeScript + Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # `npm run build` ejecuta `tsc` en el backend.
+      # Verifica tipos y genera el output en dist/ — detecta errores de compilación.
+      - name: Compilar TypeScript
+        run: npm run build

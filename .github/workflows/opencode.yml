@@ -1,66 +1,75 @@
 # opencode.yml — Workflow de GitHub Actions que AUTOMATIZA el ciclo completo:
 #
-#   Issue creado → opencode lo lee → implementa código → crea Pull Request
+#   Label 'autoimplement' en issue → opencode lo lee → implementa código → crea Pull Request
 #
 # ¿Cómo funciona?
 # ────────────────
-# 1. Cuando creas un issue en GitHub, este workflow se activa automáticamente.
-# 2. Instala opencode (CLI de IA) en el runner de GitHub Actions.
-# 3. Ejecuta `opencode run` en modo no interactivo con un prompt que le indica:
+# 1. Cuando aplicas el label 'autoimplement' a un issue, este workflow se activa.
+# 2. Comenta en el issue que la implementación comenzó.
+# 3. Instala opencode (CLI de IA) en el runner de GitHub Actions.
+# 4. Ejecuta `opencode run` en modo no interactivo con un prompt que le indica:
 #    a. Leer el issue con `gh issue view`
 #    b. Analizar el código del repositorio (ya clonado)
 #    c. Crear una rama con el formato feat/issue-{numero}-{slug}
 #    d. Implementar los cambios necesarios
 #    e. Hacer commit y push
 #    f. Crear un Pull Request con `gh pr create`
-# 4. Tú solo revisas el PR y lo mergeas si está correcto.
+# 5. Comenta en el issue el resultado (éxito con link al PR, o fallo con link a los logs).
+# 6. Tú solo revisas el PR y lo mergeas si está correcto.
+#
+# ¿Por qué el label 'autoimplement' en vez de dispararse en cualquier issue?
+# ─────────────────────────────────────────────────────────────────────────
+# No todos los issues son implementables automáticamente. Los de discusión,
+# bugs complejos o epics requieren análisis humano. El label actúa como
+# una confirmación explícita de que quieres automatización.
 #
 # ¿Por qué opencode y no Claude Code?
 # ─────────────────────────────────────
 # opencode tiene modelos gratuitos integrados (opencode/deepseek-v4-flash-free)
 # que NO requieren API key de terceros. El costo por ejecución es $0.
-#
-# Modelo gratuito: opencode/deepseek-v4-flash-free
-#   - Sin necesidad de API key externa
-#   - Sin límite de uso en GitHub Actions
-#   - Capacidad de usar herramientas (bash, edit, read, etc.)
-#
-# Requisitos:
-#   - Ninguno. El workflow usa GITHUB_TOKEN (se inyecta automáticamente en Actions).
-#
-# Diferencia con claude.yml:
-#   claude.yml → requiere @claude en comentarios + ANTHROPIC_API_KEY (pago)
-#   opencode.yml → se dispara solo al crear issue + modelo gratuito
 
 name: opencode Auto-Implement
 
 # ── Disparadores ──────────────────────────────────────────────────────────────
-# Se activa automáticamente cuando se crea un NUEVO issue (no comentarios).
+# Se activa cuando se abre un issue (por si ya tiene el label) O cuando
+# se aplica un label. La condición del job filtra por 'autoimplement'.
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
 
 # ── Permisos ──────────────────────────────────────────────────────────────────
 # contents: write      → necesario para pushear ramas nuevas
 # pull-requests: write → necesario para crear PRs
-# issues: read         → necesario para leer el contenido del issue
+# issues: write        → necesario para comentar en el issue (feedback al usuario)
 permissions:
   contents: write
   pull-requests: write
-  issues: read
+  issues: write
 
 jobs:
   # ── Job: implement ─────────────────────────────────────────────────────────
-  # Un solo job que orquesta todo: instalar opencode, leer el issue,
-  # implementar los cambios y crear el PR.
   implement:
-    # Solo ejecuta si el issue está abierto (evita procesar issues cerrados)
-    if: github.event.issue.state == 'open'
+    # Solo ejecuta si el issue está abierto Y tiene el label 'autoimplement'.
+    # Esto evita que el workflow corra en issues de discusión o bugs no implementables.
+    if: |
+      github.event.issue.state == 'open' &&
+      contains(toJson(github.event.issue.labels), '"name":"autoimplement"')
 
-    # Ubuntu latest incluye gh CLI, git, Node.js preinstalados
     runs-on: ubuntu-latest
 
+    # Timeout de 15 minutos — si opencode tarda más, probablemente está en un loop.
+    timeout-minutes: 15
+
     steps:
+      # 0. Notificar al usuario que la implementación comenzó.
+      # Este step corre ANTES del checkout para que el feedback sea inmediato.
+      - name: Comentar inicio en el issue
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "🤖 **opencode** ha iniciado la implementación automática de este issue. Se creará un Pull Request cuando termine."
+        env:
+          GH_TOKEN: ${{ secrets.GH_PATH }}
+
       # 1. Clonar el repositorio en el runner
       # fetch-depth: 0 → clona todo el historial (necesario para crear ramas)
       - name: Checkout del repositorio
@@ -69,8 +78,6 @@ jobs:
           fetch-depth: 0
 
       # 2. Configurar git para que los commits tengan autoría correcta
-      # Sin esto, los commits hechos por opencode no tendrían autor.
-      # Usamos el GITHUB_ACTOR (el usuario que disparó el workflow)
       - name: Configurar git
         run: |
           git config user.name "github-actions[bot]"
@@ -78,9 +85,8 @@ jobs:
 
       # 3. Instalar xsel (proporciona API de clipboard en headless Linux)
       # Bun (runtime de opencode) intenta leer el portapapeles al iniciar.
-      # En GitHub Actions no hay X11/Wayland, entonces Bun lanza:
-      #   "Cannot read 'clipboard' (this model does not support image input)"
-      # xsel provee una implementación de clipboard que no crashea.
+      # En GitHub Actions no hay X11/Wayland, entonces Bun puede crashear.
+      # xsel provee una implementación de clipboard que no crashea en headless.
       - name: Instalar dependencias de clipboard
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xsel >/dev/null 2>&1 || true
 
@@ -91,13 +97,12 @@ jobs:
       # tenga GH_TOKEN en env, gh CLI no puede usarlo dentro de opencode.
       #
       # Por qué NO usamos `gh auth login --with-token`:
-      #   gh auth login valida el token contra la API de GitHub y exige el scope
-      #   'read:org'. Si el PAT no tiene ese scope (no es necesario para crear
-      #   PRs), el step falla con "missing required scope 'read:org'".
+      #   gh auth login valida el token y exige el scope 'read:org'.
+      #   Si el PAT no tiene ese scope (no es necesario para crear PRs), falla.
       #
       # Solución: escribir el token directamente en ~/.config/gh/hosts.yml.
-      #   gh CLI lee este archivo para autenticarse sin hacer validación de scopes.
-      #   Solo necesita el scope 'repo' para crear ramas y PRs — no 'read:org'.
+      #   gh CLI lee este archivo sin hacer validación de scopes.
+      #   Solo necesita el scope 'repo' para crear ramas y PRs.
       - name: Autenticar gh CLI
         run: |
           mkdir -p ~/.config/gh
@@ -109,21 +114,14 @@ jobs:
 
       # 5. Instalar opencode globalmente con npm
       # El paquete oficial es "opencode-ai" (no @opencode-ai/cli).
-      # La instalación es rápida (~5 segundos).
       - name: Instalar opencode
         run: npm install -g opencode-ai
 
-      # 5. Escribir el prompt a un archivo temporal
+      # 6. Escribir el prompt a un archivo temporal
       #
       # Usamos un archivo en vez de pasar el prompt como argumento CLI por:
       #   a) Evitar problemas de escaping en GitHub Actions
       #   b) Mantener el prompt legible y editable
-      #   c) Pasar por stdin (no como argumento) para que opencode no intente
-      #      inicializar el TUI al detectar un argumento vacío
-      #
-      # Nota: Usamos printf + expansion de ${{ }} de GitHub Actions.
-      # El delimiter 'PROMPT_EOF' no está entrecomillado para que
-      # no se expandan variables de shell (pero ${{ }} de Actions sí se expanden).
       - name: Escribir prompt
         run: |
           cat > /tmp/prompt.md << PROMPT_EOF
@@ -137,7 +135,7 @@ jobs:
 
           ## Paso 2: Crear una rama
           Crea una rama desde main con el formato: feat/issue-${{ github.event.issue.number }}-{slug}
-          donde slug son 2-3 palabras del título en ingles, separadas por guiones.
+          donde slug son 2-3 palabras del título en inglés, separadas por guiones.
           Ejecuta:
             git checkout main
             git pull origin main
@@ -146,10 +144,25 @@ jobs:
           ## Paso 3: Implementar
           Lee los archivos relevantes del proyecto (usa cat o read de archivo).
           Entiende la estructura del monorepo:
-            - frontend/ → React + TypeScript + Vite + Tailwind
-            - backend/ → Express + TypeScript + Resend
-          Implementa los cambios siguiendo las convenciones del proyecto.
-          Verifica con npx tsc --noEmit en frontend/ y backend/ si aplica.
+            - frontend/ → React + TypeScript + Vite + Tailwind CSS v4
+            - backend/ → Express + TypeScript + Resend API
+
+          Implementa los cambios siguiendo estas reglas del proyecto:
+            Frontend:
+              - verbatimModuleSyntax activo → SIEMPRE usar `import type` para tipos
+              - Sistema de colores: clases Tailwind bg-coral, text-teal, etc. (nunca HEX hardcodeados)
+              - Datos estáticos en frontend/src/data/ — NO hay base de datos
+              - Tipografías: font-grotesk (headings), font-inter (body)
+            Backend:
+              - CommonJS con esModuleInterop — NO requiere import type
+              - Variables de entorno en process.env, nunca hardcodeadas
+              - Si añades vars de entorno, actualiza backend/.env.example
+
+          Verifica antes de continuar:
+            Si cambiaste frontend/:
+              cd frontend && npx tsc --noEmit && npm run lint && npm run build && cd ..
+            Si cambiaste backend/:
+              cd backend && npm run build && cd ..
 
           ## Paso 4: Commit y push
           Ejecuta:
@@ -171,57 +184,28 @@ jobs:
 
           ## Reglas importantes
           - No modifiques archivos que no estén relacionados con el issue
-          - Sigue las convenciones del proyecto (import type, JSDoc, etc.)
-          - Si algo no está claro, haz tu mejor interpretacion
-          - NO esperes confirmacion del usuario — ejecuta directamente
-          - El repositorio ya esta clonado en el directorio actual
+          - Sigue las convenciones del proyecto
+          - Si algo no está claro, haz tu mejor interpretación
+          - NO esperes confirmación del usuario — ejecuta directamente
+          - El repositorio ya está clonado en el directorio actual
           PROMPT_EOF
 
-      # 6. Ejecutar opencode en modo NO INTERACTIVO
+      # 7. Ejecutar opencode en modo NO INTERACTIVO
       #
       # opencode run: ejecuta opencode con un mensaje y termina.
-      #   No requiere TTY ni interacción humana.
       #
       # Flags:
-      #   --dangerously-skip-permissions
-      #     Auto-aprueba TODAS las herramientas (bash, edit, read, etc.)
-      #     Sin esto, opencode preguntaría "¿permites ejecutar X?" y se
-      #     bloquearía esperando respuesta.
+      #   --dangerously-skip-permissions → auto-aprueba todas las herramientas
+      #   -m opencode/deepseek-v4-flash-free → modelo gratuito sin API key
+      #   --log-level ERROR → suprime logs internos
       #
-      #   -m opencode/deepseek-v4-flash-free
-      #     Modelo gratuito sin API key.
-      #
-      #   --log-level ERROR
-      #     Suprime logs internos de opencode para que no contaminen la salida.
-      #
-      # Por qué </dev/null:
-      #   Bun (runtime de opencode) intenta leer el portapapeles al iniciar
-      #   si detecta un TTY. Redirigir stdin desde /dev/null fuerza a Bun
-      #   a no usar características interactivas.
-      #
-      # Por qué xsel (instalado arriba):
-      #   Bun usa la API de clipboard del sistema. En headless Linux sin
-      #   xsel/xclip, Bun lanza: "Cannot read 'clipboard' (this model
-      #   does not support image input)". xsel provee una implementación
-      #   funcional de clipboard que devuelve vacío en vez de crashear.
-      #
-      # Por qué gh auth login (paso anterior):
-      #   opencode SANITIZA GH_TOKEN y GITHUB_TOKEN por seguridad (los borra
-      #   antes de ejecutar subprocesos). gh auth login guarda el token en
-      #   ~/.config/gh/hosts.yml, por lo que gh CLI funciona sin depender
-      #   de env vars. opencode puede ejecutar gh commands sin problemas.
-      #
-      # NOTA: No pasamos GH_TOKEN en env porque opencode lo sanitiza.
+      # Por qué </dev/null: Bun intenta leer el portapapeles si detecta un TTY.
+      # Redirigir stdin desde /dev/null fuerza a Bun a no usar features interactivas.
       #
       # Env vars:
-      #   OPENCODE_DISABLE_PROJECT_CONFIG: "1"
-      #     Evita que opencode cargue opencode.jsonc del repositorio.
-      #
-      #   CI: "true"
-      #     Indica a opencode que se ejecuta en un entorno de CI/CD.
-      #
-      #   TERM: dumb
-      #     Evita que opencode active features de terminal.
+      #   OPENCODE_DISABLE_PROJECT_CONFIG: "1" → evita que cargue opencode.jsonc del repo
+      #   CI: "true" → indica a opencode que se ejecuta en CI/CD
+      #   TERM: dumb → evita que opencode active features de terminal
       - name: Implementar issue con opencode
         env:
           OPENCODE_DISABLE_PROJECT_CONFIG: "1"
@@ -233,3 +217,19 @@ jobs:
             -m opencode/deepseek-v4-flash-free \
             --log-level ERROR \
             "$(cat /tmp/prompt.md)" </dev/null
+
+      # 8. Reportar resultado al issue
+      # if: always() → corre aunque el step anterior haya fallado.
+      # Esto garantiza que el usuario siempre recibe feedback.
+      - name: Reportar resultado en el issue
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            gh issue comment ${{ github.event.issue.number }} \
+              --body "✅ **opencode** terminó. Revisa el Pull Request creado para este issue."
+          else
+            gh issue comment ${{ github.event.issue.number }} \
+              --body "❌ **opencode** encontró un error durante la implementación. Revisa los logs del workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GH_PATH }}

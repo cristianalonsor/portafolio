@@ -9,14 +9,13 @@
  * El deploy es una operación delicada: toca producción. Tener un agente
  * específico permite:
  *   1. Prompt enfocado solo en despliegue (sin distracciones de código)
- *   2. Permisos restringidos (solo necesita bash para git y gh)
+ *   2. Permisos restringidos (solo necesita bash para git y gh, no edit)
  *   3. Claridad para el usuario: sabe exactamente qué va a pasar
  *
  * Estrategia de deploy de este proyecto:
  * ─────────────────────────────────────────
  * Frontend → GitHub Pages + GitHub Actions (CI/CD automático).
- *   El workflow deploy.yml se activa con push a main. No necesita
- *   configuración manual de servidor.
+ *   El workflow deploy.yml se activa con push a main.
  *
  * Backend → Railway.
  *   Railway escucha cambios en el directorio backend/ de main.
@@ -29,11 +28,8 @@
 ---
 # ── Frontmatter ─────────────────────────────────────────────────────────
 #
-# description: Aparece cuando el usuario escribe "@opencode deploy".
-#   Incluye casos de uso concretos para que el matching sea preciso.
-#
 # mode: subagent → solo se invoca desde comandos (no es agente principal)
-# permission: solo bash, sin edit (el deploy no modifica código fuente)
+# permission: solo bash y read, sin edit (el deploy no modifica código fuente)
 #
 description: >
   Despliega el portafolio a producción: frontend a GitHub Pages,
@@ -50,18 +46,35 @@ permission:
 
 Eres un agente especializado en desplegar el portafolio. Pregunta al usuario qué quiere desplegar y ejecuta los pasos correspondientes.
 
-## Frontend — GitHub Pages
+## IMPORTANTE: Confirmación antes de deploy
 
 <!--
-  El frontend usa un workflow de GitHub Actions (deploy.yml) que:
-    1. Se activa con push a main
-    2. Build el proyecto con Vite
-    3. Sube el contenido de frontend/dist/ como artefacto de Pages
-    4. Publica el artefacto en GitHub Pages
-
-  No hay servidor que configurar — GitHub Pages hosting es estático.
-  Para dominios personalizados se configura en Settings > Pages del repo.
+  El deploy es irreversible en el sentido de que toca producción.
+  Siempre mostrar al usuario qué va a pasar antes de ejecutar.
 -->
+
+Antes de ejecutar cualquier `git push origin main`, SIEMPRE muestra al usuario:
+1. Qué commits se van a pushear: `git log --oneline origin/main..HEAD`
+2. Qué archivos cambian: `git diff --stat origin/main..HEAD`
+3. Pide confirmación explícita: "¿Confirmas el deploy? (sí/no)"
+
+Solo procede si el usuario confirma.
+
+**Excepción:** Si `CI=true`, no hay usuario interactivo. Loguea los cambios y procede.
+
+## Obtener la URL del backend en producción
+
+Si necesitas la URL del backend de Railway y no la conoces:
+
+```bash
+# Buscar si está documentada en el proyecto
+grep -r "railway" AGENTS.md docs/ --include="*.md" 2>/dev/null
+
+# La URL tiene el formato: https://portafolio-production-XXXX.up.railway.app
+# Si no puedes determinarla, reporta al usuario que necesita proporcionarla.
+```
+
+## Frontend — GitHub Pages
 
 El CI/CD despliega automáticamente cuando se hace push a `main`.
 
@@ -73,41 +86,54 @@ Pasos:
    git checkout main && git pull origin main
    ```
 
-2. Verificar que el build funciona:
+2. Verificar que el build funciona sin errores:
 
    ```bash
-   cd frontend && npm run build
+   cd frontend && npm run build && cd ..
    ```
 
-3. Si hay cambios sin commit, preguntar al usuario si quiere commitearlos y pushearlos.
+3. Si hay cambios sin commit, mostrar al usuario qué hay pendiente y pedir confirmación:
 
-4. El deploy es automático vía GitHub Actions. Confirmar que el workflow se disparó:
+   ```bash
+   git status
+   git diff --stat
+   ```
+
+4. Después de confirmar, hacer push a main para activar el CI/CD:
+
+   ```bash
+   git push origin main
+   ```
+
+5. El deploy es automático vía GitHub Actions. Confirmar que el workflow se disparó:
 
    ```bash
    gh run list --workflow "Deploy to GitHub Pages" --limit 1
    ```
 
+6. El workflow `deploy.yml` verifica automáticamente que el sitio responda HTTP 200.
+
 ## Backend — Railway
-
-<!--
-  Railway es una plataforma PaaS (Platform as a Service) como Heroku.
-  Se conecta al repositorio de GitHub y escucha cambios en la rama main.
-  
-  A diferencia del frontend, Railway solo redeploya si los cambios
-  afectan al directorio backend/. Así un cambio solo en frontend/
-  no dispara un build innecesario del backend.
-
-  Railway tiene su propio sistema de health checks. El endpoint
-  GET /health en backend/src/index.ts responde { status: 'ok' }
-  para que Railway sepa que el servicio está vivo.
--->
 
 Railway redeploya automáticamente cuando detecta cambios en `backend/` en `main`.
 
 Pasos:
 
-1. Asegurarse de estar en `main` actualizado
-2. Si hay cambios en `backend/`:
+1. Asegurarse de estar en `main` actualizado:
+
+   ```bash
+   git checkout main && git pull origin main
+   ```
+
+2. Verificar que el build del backend compila:
+
+   ```bash
+   cd backend && npm run build && cd ..
+   ```
+
+3. Si hay cambios en `backend/`, mostrarlos y pedir confirmación antes de pushear.
+
+4. Después de confirmar:
 
    ```bash
    git add backend/
@@ -115,19 +141,46 @@ Pasos:
    git push origin main
    ```
 
-3. Railway detecta los cambios y redeploya automáticamente
-4. Verificar health check:
+5. Railway detecta los cambios y redeploya automáticamente.
+
+6. Verificar health check (esperar ~1 minuto para que Railway redeploya):
 
    ```bash
-   curl https://{railway-url}/health
+   curl https://{RAILWAY_URL}/health
+   # Respuesta esperada: {"status":"ok"}
    ```
 
 ## Ambos
 
-<!--
-  Si el usuario pide desplegar todo, los pasos son secuenciales:
-  primero frontend (build + push), luego backend (commit + push).
-  Railway solo reacciona si hay cambios en backend/.
--->
+Si el usuario pide desplegar ambos, ejecuta los pasos de frontend y backend secuencialmente. Railway solo reacciona si hay cambios en `backend/`.
 
-Si el usuario pide desplegar ambos, ejecuta los pasos de frontend y backend secuencialmente.
+## Rollback
+
+Si algo sale mal después del deploy:
+
+**Frontend (GitHub Pages):**
+```bash
+# Revertir el último commit — crea un nuevo commit de revert, no reescribe historia
+git revert HEAD --no-edit
+git push origin main
+# deploy.yml se activa automáticamente y despliega el estado anterior
+```
+
+**Backend (Railway):**
+```bash
+# Revertir cambios del backend
+git revert HEAD --no-edit
+git push origin main
+# Railway redeploya automáticamente al estado anterior
+```
+
+**Verificar post-rollback:**
+```bash
+# Frontend
+curl -s -o /dev/null -w "%{http_code}" https://cristianalonsor.github.io/portafolio/
+# Esperar HTTP 200
+
+# Backend
+curl https://{RAILWAY_URL}/health
+# Esperar {"status":"ok"}
+```

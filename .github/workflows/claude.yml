@@ -59,14 +59,63 @@ jobs:
           # Le explica la estructura del proyecto para que tome mejores decisiones.
           custom_instructions: |
             Este es el portafolio personal de Cristian Reyes — Full Stack Developer.
+            Repositorio: https://github.com/cristianalonsor/portafolio
 
-            Estructura del monorepo:
-            - frontend/  → React 19 + TypeScript + Vite + Tailwind CSS v4
-            - backend/   → Node.js + Express 5 + TypeScript + Resend API
+            ## Estructura del monorepo
 
-            Reglas importantes:
-            - Usar `import type` para tipos de TypeScript (verbatimModuleSyntax está activo)
-            - El sistema de diseño usa tokens: coral, teal, orange, yellow, dark, slate, muted
-            - Todos los componentes nuevos deben tener un comentario JSDoc general
-            - Los PRs van de una rama hacia main, nunca push directo a main
-            - El frontend se despliega en GitHub Pages, el backend en Railway
+            ### Frontend (frontend/)
+            React 19 + TypeScript + Vite + Tailwind CSS v4.
+            Scripts: dev / build / lint / preview
+
+            Archivos clave:
+            - frontend/src/components/  → layout/ (Navbar, Footer), sections/ (Hero, About, Skills, Projects, Contact), ui/ (Button, Badge)
+            - frontend/src/pages/       → Home.tsx (scroll único), ProjectDetail.tsx (detalle /proyectos/:slug)
+            - frontend/src/data/        → projects.ts, skills.ts — arrays estáticos (SIN base de datos)
+            - frontend/src/hooks/       → useContactForm.ts (lógica del formulario)
+            - frontend/src/types/       → index.ts (interfaces Project, SkillCategory, etc.)
+            - frontend/src/index.css    → Sistema de colores con directiva @theme de Tailwind v4
+
+            Sistema de diseño (clases Tailwind disponibles):
+            - coral (#E63946) · teal (#2A9D8F) · orange (#F4A261) · yellow (#E9C46A)
+            - dark (#1a1a2e) · slate (#264653) · muted (#A8A8B3)
+            - Tipografías: font-grotesk (Space Grotesk, headings) · font-inter (Inter, body)
+            - NUNCA usar HEX hardcodeados en componentes — siempre clases Tailwind (bg-coral, text-teal, etc.)
+
+            TypeScript frontend: verbatimModuleSyntax ACTIVO → SIEMPRE usar `import type` para tipos.
+            Sin `import type`, TypeScript lanza error en compilación.
+
+            ### Backend (backend/)
+            Node.js + Express 5 + TypeScript + Resend API.
+            Scripts: dev / build / start
+
+            Archivos clave:
+            - backend/src/index.ts                          → Entry point, configura Express y monta rutas
+            - backend/src/routes/contact.route.ts           → POST /api/contact
+            - backend/src/middlewares/validate.middleware.ts → Validación del body del formulario
+            - backend/src/services/mailer.service.ts        → Integración Resend para envío de emails
+            - backend/src/types/contact.types.ts            → Interfaces ContactPayload y ApiResponse
+
+            Endpoints:
+            - POST /api/contact → recibe { name, email, subject, message }, valida y envía email
+            - GET /health → { status: 'ok' } (health check para Railway)
+
+            TypeScript backend: CommonJS con esModuleInterop — NO requiere `import type`.
+            Variables de entorno: RESEND_API_KEY, FROM_EMAIL, TO_EMAIL, FRONTEND_URL, PORT
+            (ver backend/.env.example para referencia)
+
+            ## Reglas de código
+
+            - `import type` OBLIGATORIO para tipos en el frontend (verbatimModuleSyntax)
+            - JSDoc en todas las funciones y componentes nuevos o modificados
+            - Mobile-first: estilos base para móvil, breakpoints sm/md/lg añaden encima
+            - Datos estáticos en frontend/src/data/ — NO crear base de datos ni fetch externo
+            - Variables de entorno en process.env, nunca hardcodeadas
+            - Si añades vars de entorno al backend, actualiza backend/.env.example
+            - Conventional commits: feat/fix/refactor/style/docs
+            - PRs siempre de una rama feature hacia main — nunca push directo a main
+
+            ## Infraestructura
+
+            - Frontend: GitHub Pages — https://cristianalonsor.github.io/portafolio/
+            - Backend: Railway (auto-deploy cuando hay cambios en backend/ en main)
+            - CI gate: TypeScript + ESLint (frontend) y TypeScript (backend) en cada PR

@@ -101,6 +101,14 @@
     "issue:pr": {
       "description": "Crea un Pull Request con los cambios desarrollados",
       "template": "Crea un PR con los cambios actuales siguiendo el flujo de trabajo del proyecto. Usa gh pr create."
+    },
+    // issue:review: Delega al subagente "reviewer" que revisa PRs automáticamente.
+    // Verifica TypeScript, ESLint, build y coherencia con el issue original.
+    // El reviewer NO aprueba ni mergea — solo deja un comentario con el checklist.
+    "issue:review": {
+      "description": "Revisa automáticamente un PR: TypeScript, ESLint, build y coherencia con el issue",
+      "agent": "reviewer",
+      "template": "Revisa el PR #{PR_NUMBER} verificando que compila, sigue las convenciones y resuelve el issue original."
     }
   },
 
