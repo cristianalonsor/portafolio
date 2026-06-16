@@ -90,11 +90,22 @@ jobs:
       # (las borra antes de ejecutar subprocesos). Por eso, aunque el workflow
       # tenga GH_TOKEN en env, gh CLI no puede usarlo dentro de opencode.
       #
-      # Solución: autenticar gh CLI directamente con gh auth login --with-token.
-      # gh guarda el token en ~/.config/gh/hosts.yml, y opencode puede usar
-      # gh CLI sin depender de la env var GH_TOKEN.
+      # Por qué NO usamos `gh auth login --with-token`:
+      #   gh auth login valida el token contra la API de GitHub y exige el scope
+      #   'read:org'. Si el PAT no tiene ese scope (no es necesario para crear
+      #   PRs), el step falla con "missing required scope 'read:org'".
+      #
+      # Solución: escribir el token directamente en ~/.config/gh/hosts.yml.
+      #   gh CLI lee este archivo para autenticarse sin hacer validación de scopes.
+      #   Solo necesita el scope 'repo' para crear ramas y PRs — no 'read:org'.
       - name: Autenticar gh CLI
-        run: echo "${{ secrets.GH_PATH }}" | gh auth login --with-token
+        run: |
+          mkdir -p ~/.config/gh
+          cat > ~/.config/gh/hosts.yml << EOF
+          github.com:
+              oauth_token: ${{ secrets.GH_PATH }}
+              git_protocol: https
+          EOF
 
       # 5. Instalar opencode globalmente con npm
       # El paquete oficial es "opencode-ai" (no @opencode-ai/cli).
