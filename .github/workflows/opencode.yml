@@ -84,19 +84,7 @@ jobs:
       - name: Instalar dependencias de clipboard
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xsel >/dev/null 2>&1 || true
 
-      # 4. Autenticar gh CLI con el PAT
-      #
-      # opencode SANITIZA las variables GH_TOKEN y GITHUB_TOKEN por seguridad
-      # (las borra antes de ejecutar subprocesos). Por eso, aunque el workflow
-      # tenga GH_TOKEN en env, gh CLI no puede usarlo dentro de opencode.
-      #
-      # Solución: autenticar gh CLI directamente con gh auth login --with-token.
-      # gh guarda el token en ~/.config/gh/hosts.yml, y opencode puede usar
-      # gh CLI sin depender de la env var GH_TOKEN.
-      - name: Autenticar gh CLI
-        run: echo "${{ secrets.GH_PATH }}" | gh auth login --with-token
-
-      # 5. Instalar opencode globalmente con npm
+      # 4. Instalar opencode globalmente con npm
       # El paquete oficial es "opencode-ai" (no @opencode-ai/cli).
       # La instalación es rápida (~5 segundos).
       - name: Instalar opencode
@@ -194,15 +182,16 @@ jobs:
       #   does not support image input)". xsel provee una implementación
       #   funcional de clipboard que devuelve vacío en vez de crashear.
       #
-      # Por qué gh auth login (paso anterior):
-      #   opencode SANITIZA GH_TOKEN y GITHUB_TOKEN por seguridad (los borra
-      #   antes de ejecutar subprocesos). gh auth login guarda el token en
-      #   ~/.config/gh/hosts.yml, por lo que gh CLI funciona sin depender
-      #   de env vars. opencode puede ejecutar gh commands sin problemas.
-      #
-      # NOTA: No pasamos GH_TOKEN en env porque opencode lo sanitiza.
+      # Por qué GH_TOKEN (PAT en vez de GITHUB_TOKEN):
+      #   GITHUB_TOKEN no puede crear PRs desde Actions por política de
+      #   seguridad de GitHub. El PAT (almacenado como secret GH_PATH)
+      #   bypassa esta restricción porque actúa como el usuario dueño del token.
+      #   Además, el PAT necesita scope "repo" para crear PRs.
       #
       # Env vars:
+      #   GH_TOKEN: ${{ secrets.GH_PATH }}
+      #     PAT con scope "repo" para que gh CLI pueda crear PRs.
+      #
       #   OPENCODE_DISABLE_PROJECT_CONFIG: "1"
       #     Evita que opencode cargue opencode.jsonc del repositorio.
       #
@@ -213,6 +202,7 @@ jobs:
       #     Evita que opencode active features de terminal.
       - name: Implementar issue con opencode
         env:
+          GH_TOKEN: ${{ secrets.GH_PATH }}
           OPENCODE_DISABLE_PROJECT_CONFIG: "1"
           CI: "true"
           TERM: dumb
