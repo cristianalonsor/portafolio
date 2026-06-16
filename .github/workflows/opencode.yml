@@ -66,6 +66,7 @@ jobs:
       - name: Comentar inicio en el issue
         run: |
           gh issue comment ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
             --body "🤖 **opencode** ha iniciado la implementación automática de este issue. Se creará un Pull Request cuando termine."
         env:
           GH_TOKEN: ${{ secrets.GH_PATH }}
@@ -226,9 +227,11 @@ jobs:
         run: |
           if [ "${{ job.status }}" = "success" ]; then
             gh issue comment ${{ github.event.issue.number }} \
+              --repo ${{ github.repository }} \
               --body "✅ **opencode** terminó. Revisa el Pull Request creado para este issue."
           else
             gh issue comment ${{ github.event.issue.number }} \
+              --repo ${{ github.repository }} \
               --body "❌ **opencode** encontró un error durante la implementación. Revisa los logs del workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
         env:
